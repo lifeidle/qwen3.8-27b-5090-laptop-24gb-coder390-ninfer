@@ -13,21 +13,28 @@
 
 ---
 
-## 🤔 Same 5090, two models: this repo (27B NVFP4) vs [Flash-Next 177B MoE](https://github.com/lifeidle/qwen3.8-flash-next-strata-5090-laptop-24gb) — which one?
+## 🆚 2026-10-11: Two-route showdown — native llama.cpp vs NInfer (WSL2 + Docker)
 
-Both repos run on the same RTX 5090 Laptop 24GB. The difference is not which model is stronger — it is **what role the machine is playing**:
+Same 24GB card, two generations of the daily driver, all numbers from server-side timings:
 
-| | **Qwen3.8-27B NVFP4** (this repo) | [Flash-Next 177B MoE](https://github.com/lifeidle/qwen3.8-flash-next-strata-5090-laptop-24gb) |
-|---|---|---|
-| decode speed | 74-78 tok/s | **110.9 peak / 101-103 sustained tok/s** |
-| stable context | 160K (VRAM cliff from ~180K) | **256K** |
-| CPU | **nearly idle** (all layers resident on GPU) | saturated (expert CPU pool + MTP pipeline load the GPU and CPU together) |
-| RAM | **low** (15.75 GB weights + KV all in VRAM) | ~40 GB (hot expert tiers stay resident) |
-| VRAM | ~20 / 24 GiB | 23.2-23.9 / 24 GiB |
-| Can you keep working on this PC while the model runs? | **yes** — CPU and RAM have plenty of headroom; only VRAM is tight | **barely** — CPU / RAM / VRAM are all consumed |
-| Right role | **same-desk assistant**: keep working on the PC while using the local AI | **dedicated model server**: the PC only serves the model, other devices call it over the LAN API |
+| metric | TWIN-TURBO + llama.cpp (this page) | Coder390 Q3 LynnStyle + NInfer (new route) |
+|---|---:|---:|
+| single-request decode | 74-78 tok/s | **84-86 tok/s** (+11~15%) |
+| single-request context | 160K | **262,144 full native window** |
+| 4-way concurrent aggregate | ~110-120 tok/s | **227.7 tok/s** |
+| prefill | ~1,675 tok/s | 1,395 tok/s |
+| full-load penalty (65K) | heavy | only −12~18% |
+| quality triad (official full suites) | none published | **GPQA 173 / MMLU 449 / LCB 92** |
+| anti-rambling | thinking −93% (in weights) | 94K truncations 13→3 (in weights) |
+| deployment | ★ double-click | ★★★ WSL2 + Docker (official image) |
 
-**One line**: working and using the AI on the same PC at the same time → this repo, 27B NVFP4. Machine as a "model provider" (nothing else runs on it) → [Flash-Next 177B MoE](https://github.com/lifeidle/qwen3.8-flash-next-strata-5090-laptop-24gb).
+- 📊 Full data & selection guide → [`data/ninfer-vs-turbo.md`](./data/ninfer-vs-turbo.md)
+- 🔧 NInfer deployment log (root-cause chain of three `finalizing target` crashes, measured KV cost per token, two launch profiles) → [`docs/ninfer-wsl2-deployment.md`](./docs/ninfer-wsl2-deployment.md)
+- ⚙️ Scripts → [`scripts/start-ninfer.sh`](./scripts/start-ninfer.sh) · [`scripts/bench-one.py`](./scripts/bench-one.py) · [`scripts/bench-par.py`](./scripts/bench-par.py)
+
+One-line pick: **want zero-fuss + vision + double-click → llama.cpp; want the fastest, 262K context, real concurrency, and Docker is fine → NInfer.** Both can coexist (ports 8082/8083), switch any time.
+
+---
 
 ## 🏆 Current Champion (copy-paste ready)
 

@@ -1,20 +1,22 @@
-# Qwen3.8-27B · 单卡 24GB 极限调优实录
+# Qwen3.8 · RTX 5090 Laptop 24GB 极限实录
 
-**把 TWIN-TURBO 调到 RTX 5090 Laptop 24GB 上的实际极限 —— 每一个数字都有对照组实测**
+**Qwen3.8 家族在这块 24GB 笔记本卡上的完整对决与定版 —— 27B Dense 双引擎路线，6 路并发 × 262K 满窗，聚合峰值 316.3 tok/s，每个数字都是服务端计时实测**
 
 [English →](./README_EN.md) ｜ [工具脚本 →](./scripts) ｜ [原始数据 →](./data)
 
-![Model](https://img.shields.io/badge/model-Qwen3.8--27B%20TWIN--TURBO-7c3aed)
+![Model](https://img.shields.io/badge/model-Coder390%20Q2%20LynnStyle-7c3aed)
 
 ![Platform](https://img.shields.io/badge/platform-RTX%205090%20Laptop%2024GB-76b900)
 
+![Aggregate](https://img.shields.io/badge/aggregate-272.9%20~20316.3%20peak-d97706)
 
+![Context](https://img.shields.io/badge/context-262K%20×%206路-2563eb)
 
-![Throughput](https://img.shields.io/badge/decode-74~78%20tok%2Fs-d97706)
+![Vision](https://img.shields.io/badge/vision-OCR%20级常驻-059669)
 
-![Context](https://img.shields.io/badge/context-160K%20max%20stable-2563eb)
+![Engine](https://img.shields.io/badge/NInfer--all%200.12-WSL2%20%2B%20Docker-0ea5e9)
 
-![Engine](https://img.shields.io/badge/llama.cpp-b11223%20CUDA%2013.4-0ea5e9)
+![Alt](https://img.shields.io/badge/备胎-llama.cpp%20b11223%20%2B%20TWIN--TURBO-6b7280)
 
 ![License](https://img.shields.io/badge/license-MIT%20%2B%20CC%20BY%204.0-059669)
 
@@ -22,11 +24,11 @@
 
 ## 🥊 三大对决总览
 
-| #     | 对决                                                | 最终答案                                                    |
-| ----- | ------------------------------------------------- | ------------------------------------------------------- |
+| # | 对决 | 最终答案 |
+|---|---|---|
 | **一** | **并发取舍**（10-12 定版）：单路满速 vs 多路吞吐，Q2 @ 262K 满窗 + 视觉 | **mc6 × d3**：聚合 272.9（峰值 316.3）、单路 76、262K 原生窗 + 288K 池 |
-| **二** | **部署路线**：llama.cpp 原生 vs NInfer（WSL2 + Docker）    | 两条都可跑；NInfer 快 10-25%、llama.cpp 免 Docker                |
-| **三** | **模型架构**：27B Dense vs Flash-Next 125B MoE         | 24GB 单卡 → **27B Dense 唯一正解**；Flash-Next 需双卡起步           |
+| **二** | **部署路线**：llama.cpp 原生 vs NInfer（WSL2 + Docker） | 两条都可跑；NInfer 快 10-25%、llama.cpp 免 Docker |
+| **三** | **模型架构**：27B Dense vs Flash-Next 125B MoE | 24GB 单卡 → **27B Dense 唯一正解**；Flash-Next 需双卡起步 |
 
 ---
 
@@ -41,24 +43,24 @@
 --max-concurrency 6 --spec mtp --draft-tokens 3 --vision
 ```
 
-| 指标        |                                             数值 |
-| --------- | ---------------------------------------------: |
-| 聚合吞吐（6 路） |        **272.9 tok/s** 稳定 / **316.3 峰值**（历史最高） |
-| 单发 decode |                                    80-83 tok/s |
-| 并发时单路     |                                    59-76 tok/s |
-| 上下文       | 262,144 原生满窗（池 294,912 = +32K 排队余量，天花板实测 288K） |
-| MTP 接受率   |                            59-64%（d3）；d2 档 80% |
-| 视觉        |                                    ✅ OCR 级图片理解 |
+| 指标 | 数值 |
+|---|---:|
+| 聚合吞吐（6 路） | **272.9 tok/s** 稳定 / **316.3 峰值**（历史最高） |
+| 单发 decode | 80-83 tok/s |
+| 并发时单路 | 59-76 tok/s |
+| 上下文 | 262,144 原生满窗（池 294,912 = +32K 排队余量，天花板实测 288K） |
+| MTP 接受率 | 59-64%（d3）；d2 档 80% |
+| 视觉 | ✅ OCR 级图片理解 |
 
 ### 并发数怎么选（三轮会话验证，±5-9% 方差）
 
-| 路数        |        聚合 |   单路峰值 | 适合                  |
-| --------- | --------: | -----: | ------------------- |
-| mc1       |  83.4（单发） |   83.4 | 极限单任务（无视觉可到 262K）   |
-| mc2       |     137.9 | **87** | 双开，接近满速             |
-| mc4       |     215.3 |     77 | 均衡                  |
-| **mc6 ★** | **272.9** |     76 | **定版：总吞吐与单路体感的平衡点** |
-| mc7       |     316.3 |     59 | 跑批极限（8 路带视觉全灭）      |
+| 路数 | 聚合 | 单路峰值 | 适合 |
+|---|---:|---:|---|
+| mc1 | 83.4（单发） | 83.4 | 极限单任务（无视觉可到 262K） |
+| mc2 | 137.9 | **87** | 双开，接近满速 |
+| mc4 | 215.3 | 77 | 均衡 |
+| **mc6 ★** | **272.9** | 76 | **定版：总吞吐与单路体感的平衡点** |
+| mc7 | 316.3 | 59 | 跑批极限（8 路带视觉全灭） |
 
 **三条硬规律**（48 格 + 21 格复测，三轮会话背书）：① MTP 接受率随草稿长度单调跌（d2 80% → d9 28-37%），**d5 以上是负资产**；② 每加一路 ≈ +0.5-1GB 工作区，mc7 是 262K+视觉的并发天花板；③ 池可超配到 288K（探针实测），但单请求仍封顶原生窗口 262,144。
 
@@ -82,20 +84,17 @@
 
 同一块 24GB 卡，两代主力方案正面对决，全部数字为服务端计时口径：
 
-| 指标         | TWIN-TURBO + llama.cpp（本页主角） | Coder390 Q3 LynnStyle + NInfer（新路线） |
-| ---------- | ---------------------------: | ----------------------------------: |
-| 单请求 decode |                  74-78 tok/s |            **84-86 tok/s**（+11~15%） |
-| 单请求上下文     |                         160K |                     **262,144 满窗口** |
-| 4 路并发聚合    |               ~110-120 tok/s |                     **227.7 tok/s** |
-| prefill    |                 ~1,675 tok/s |                         1,395 tok/s |
-| 满载惩罚（65K）  |                            重 |                           仅降 12-18% |
-| 质量三联（官方全量） |                        无公开数据 |    **GPQA 173 / MMLU 449 / LCB 92** |
-| 反「停不下来」    |                 思考 −93%（模型层） |                    94K 截断 13→3（模型层） |
-| 部署         |                       ★ 双击即用 |             ★★★ WSL2 + Docker（官方镜像） |
+| metric | TWIN-TURBO + llama.cpp（备胎路线） | Coder390 Q2 + NInfer（定版路线） |
+|---|---:|---:|
+| 单发 decode | 74-78 tok/s | **80-83 tok/s** |
+| 并发单路峰值 | 73 | **76（6 路）/ 95（mc2 × d7）** |
+| 聚合（多路） | ~115（np2） | **272.9（6 路）** |
+| 上下文 | 160K | **262,144 原生满窗** |
+| 部署 | ★ 双击即用 | ★★★ WSL2 + Docker（官方镜像） |
+| 质量 | 无公开三联 | GPQA 87.4% / MMLU 449 / LCB 92 |
 
 - 📊 完整数据与选型建议 → [`data/ninfer-vs-turbo.md`](./data/ninfer-vs-turbo.md)
-- 🔧 NInfer 部署实录（含 `finalizing target` 三连炸根因链、KV 格式实测单价、双 Profile 启动脚本）→ [`docs/ninfer-wsl2-deployment.md`](./docs/ninfer-wsl2-deployment.md)
-- ⚙️ 脚本 → [`scripts/start-ninfer.sh`](./scripts/start-ninfer.sh) · [`scripts/bench-one.py`](./scripts/bench-one.py) · [`scripts/bench-par.py`](./scripts/bench-par.py)
+- 🔧 NInfer 部署实录（含 `finalizing target` 三连炸根因链、KV 格式实测单价、池天花板探针）→ [`docs/ninfer-wsl2-deployment.md`](./docs/ninfer-wsl2-deployment.md)
 
 一句话选型：**要省事、要视觉、双击即用 → llama.cpp 路线；要最快、要 262K、要真并发、不介意 Docker → NInfer 路线。** 两条路线端口互斥（8082/8083）可共存，随时切换。
 
@@ -105,15 +104,15 @@
 
 同族两条架构路线：稠密 27B vs 125B MoE（512 专家，每 token 激活 ~6B）。Flash-Next 更聪明，但它的胃口是**双卡级**的。
 
-|                   | **27B Dense**（本仓）                       | **Flash-Next 125B MoE**                    |
-| ----------------- | --------------------------------------- | ------------------------------------------ |
-| 权重                | 15.75-17.3 GB                           | Q2_0 **35.9 GiB** + n-gram 表 **26.8 GiB**  |
-| 24GB 单卡笔记本        | ✅ 原生全 GPU + 视觉 + 6 路并发                  | ❌ 装不下；专家必须主机内存/磁盘流式                        |
-| 桌面 5090 短答 decode | 236 tok/s（DFlash2 官方口径）                 | 136 tok/s（专家全 GPU，**需 2 卡**）               |
-| 专家在主机内存           | —                                       | 74 tok/s（**−69%**）                         |
-| 专家磁盘冷读            | —                                       | 25 tok/s（不可交互）                             |
-| 质量                | Coder390：GPQA 87.4% / MMLU 449 / LCB 92 | Q2_0（双 5090）：**AIME 93.3%** / GPQA-D 86.4% |
-| 定位                | 单卡性价比之王                                 | 多卡工作站的数学/推理特化                              |
+| | **27B Dense**（本仓） | **Flash-Next 125B MoE** |
+|---|---|---|
+| 权重 | 15.75-17.3 GB | Q2_0 **35.9 GiB** + n-gram 表 **26.8 GiB** |
+| 24GB 单卡笔记本 | ✅ 原生全 GPU + 视觉 + 6 路并发 | ❌ 装不下；专家必须主机内存/磁盘流式 |
+| 桌面 5090 短答 decode | 236 tok/s（DFlash2 官方口径） | 136 tok/s（专家全 GPU，**需 2 卡**） |
+| 专家在主机内存 | — | 74 tok/s（**−69%**） |
+| 专家磁盘冷读 | — | 25 tok/s（不可交互） |
+| 质量 | Coder390：GPQA 87.4% / MMLU 449 / LCB 92 | Q2_0（双 5090）：**AIME 93.3%** / GPQA-D 86.4% |
+| 定位 | 单卡性价比之王 | 多卡工作站的数学/推理特化 |
 
 **本仓结论**：24GB 约束下 27B Dense 是唯一能「全 GPU 常驻 + 视觉 + 多路并发」的路线。Flash-Next 的 6B 激活 MoE 在数学推理上确有上限优势（AIME 93.3%），但那需要第二张卡买单。详细数据 → [`data/dense-vs-flashnext.md`](./data/dense-vs-flashnext.md)
 
@@ -132,13 +131,13 @@ docker run -d --gpus all -p 8083:8080 --ulimit memlock=-1 --name ninfer-coder390
 ```
 
 | **6 路并发 × 262K 满窗** | 聚合 **272.9**（峰值 316.3） | 单路 59-76 | 视觉 OCR 级 | 内网 `:8083` |
-| ------------------- | ---------------------- | -------- | -------- | ---------- |
+|---|---|---|---|---|
 
 > 端点：`http://<本机IP>:8083/v1/chat/completions` · model 名 `qwen3.8-27b-coder390-q2-q4mtp` · 停止：`docker rm -f ninfer-coder390`
 
-### 🅣 路线 T：TWIN-TURBO + llama.cpp（前单卡王 · 免 Docker 备胎）
+### 🅣 路线 T：TWIN-TURBO + llama.cpp（备胎 · 免 Docker）
 
-![当前主力配置](assets/chart12-champion-stack.svg)
+![前单卡王配置](assets/chart12-champion-stack.svg)
 
 **一行命令启动**（PowerShell 粘贴回车；关闭窗口即停止）：
 
@@ -146,73 +145,53 @@ docker run -d --gpus all -p 8083:8080 --ulimit memlock=-1 --name ninfer-coder390
 & "D:\llama-upstream-b11223\llama-server.exe" -m "D:\models\esatapedico\Qwen3.8-27B-TWIN-TURBO-Fable-Cold-Fusion-709-L-Uncensored-NVFP4-MID-HIGH.gguf" --mmproj "D:\models\Qwen3.8-27B-quant-test\mmproj-Q8_0.gguf" -ngl 99 -fa on -fit off -c 163840 -np 1 --ctx-checkpoints 4 --load-mode none --jinja --cache-type-k q8_0 --cache-type-v q8_0 --spec-type draft-mtp --spec-draft-n-max 3 --reasoning-effort xhigh --temp 1.0 --top-p 0.95 --top-k 20 --min-p 0.0 --host 127.0.0.1 --port 8082
 ```
 
-### 这套方案解决了什么
+路线 T 规格速览：**74-78 tok/s** 解码（MTP ~1.8×）· 160K 稳定上下文 · 视觉 3.9 秒/张 · 思考 −93%（模型层修复）。深度调优记录见下方归档与 [data/tturbo-adoption.md](data/tturbo-adoption.md)。
 
-| 问题              | 状态                                                                                      |
-| --------------- | --------------------------------------------------------------------------------------- |
-| **思考失控 / 过度思考** | ✅ **模型层修复 −93%**（失控 prompt：19,859 → 1,318 字符，31.7 秒给出 6,034 字符正文）——权重里直接训练掉了，不需要任何运行时补丁 |
-| **精度**          | ✅ **全 Q8_0 链路**（输出头 + MTP 头 + KV cache 全部近无损量化），多轮长对话累积最稳                               |
-| **长任务续航**       | ✅ 12 分钟满载 100 轮**零衰减**（78.7 → 83.7 tok/s，笔记本散热完全扛得住 agent 负载）                           |
-| **视觉**          | ✅ 开启，**3.9 秒/张**（自量化的 q8_0 mmproj，质量与 BF16 无差）                                          |
-| **速度**          | ✅ **74–78 tok/s** 解码（含视觉），MTP 草稿带来 ~1.8×                                                |
-| **唯一牺牲：上下文**    | ⚠️ **封顶 160K** —— 显存悬崖实测在 ~180K（192K 直接 −25%），这是这台卡上"稳定跑"能换到的最大值                        |
-
-> ⚠️ **刻意不用** `--reasoning-budget` 和 `--chat-template-file`：模型自带 10 种模式系统（5 reasoning + 5 instruct，einstein/spoon/xhigh…，聊天中实时切换），旧运行时补丁与它**冲突**（叠加后更慢、思考更多）。
+> ⚠️ 路线 T 刻意不用 `--reasoning-budget` 与 `--chat-template-file`：模型自带 10 种模式系统，旧运行时补丁与其冲突。
 >
-> 📦 **需要下载的三件套**：① [esatapedico / TWIN-TURBO-NVFP4-GGUF](https://huggingface.co/esatapedico/Qwen3.8-27B-TWIN-TURBO-Fable-Cold-Fusion-709-L-Uncensored-NVFP4-GGUF) 选 **MID-HIGH** 档（15.75 GB）· ② [mmproj](https://huggingface.co/Qwen/Qwen3.8-27B)（~0.9 GB，建议自量化成 Q8_0 = 600 MB）· ③ [llama.cpp b11223+ Windows CUDA 包](https://github.com/ggml-org/llama.cpp/releases)（主程序 + cudart 两个 zip）。国内把 `huggingface.co` 换成 `hf-mirror.com`。
-
----
-
-## 📈 两组关键实测图
-
-**① MTP 草稿深度：3 就是甜点**（2026-09-28 在 b11223 上复验）
-
-![MTP草稿深度](assets/chart13-mtp-depth.svg)
-
-**② 上下文悬崖：160K 是"稳定跑"的最大值**
-
-![上下文悬崖](assets/chart14-ctx-cliff.svg)
-
-- 非溢出区间内 ctx 大小**不影响速度**（152K-176K 全是 74-77 tok/s）
-- **168-176K 是"刀锋边缘"**：同一命令不同启动，双峰 74.7 ↔ 55-59（显存 98% 满，是否溢出看碎片运气）——比匀速慢更糟的不可预测
-- **184K 起真实掉速**（−12%，复测一致），**192K 起 −25%**（KV 溢出到内存）
-- KV 成本实测 **43.97 KiB/token**；160K 的 KV ≈ 6.9 GiB，整卡账本 23.96/24.46 GiB
+> 📦 三件套：① [TWIN-TURBO NVFP4 MID-HIGH](https://huggingface.co/esatapedico/Qwen3.8-27B-TWIN-TURBO-Fable-Cold-Fusion-709-L-Uncensored-NVFP4-GGUF)（15.75 GB）· ② [mmproj](https://huggingface.co/Qwen/Qwen3.8-27B)（建议自量化 Q8_0）· ③ [llama.cpp b11223+ Windows CUDA 包](https://github.com/ggml-org/llama.cpp/releases)。国内换 `hf-mirror.com`。
 
 ---
 
 ## 🎯 10 秒决策
 
-| 你的场景                   | 选择                                                                                                                                  |
-| ---------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
-| 日常对话 / 编码 / agent（要视觉） | **上面的一行命令** ✅                                                                                                                       |
-| 需要灌 20 万+ tokens 大材料   | 备用配置：NVFP4-MTP-LOW + q4_0 KV + 262K（见 [data/context-scaling-history.md](data/context-scaling-history.md)）                           |
-| 两个客户端同时用               | `-np 2`：第一条流无损、第二条 −17%、**总吞吐 +50%**，代价是每槽 80K（见 [data/2026-09-28-final-stack-tuning.md](data/2026-09-28-final-stack-tuning.md) §4） |
-| 真正的 1M 交互              | 32GB+ 显存（vLLM 路线）                                                                                                                   |
-| 思考停不下来                 | **TWIN-TURBO 已在模型层修复**（−93%），无需补丁                                                                                                   |
+| 你的场景 | 选择 |
+| --- | --- |
+| 日常使用 / 内网多端访问 | **桌面双击 `启动本地大模型-内网8083.bat`**（NInfer Q2 mc6 × d3）✅ |
+| 跑批 / 多 agent 并行 | NInfer **mc7 × d3**（聚合 316.3，见对决一） |
+| 单任务极限长文 | NInfer mc1 @ 262K（无视觉）；带视觉 mc1 @ 192K |
+| 双开且每路要快 | mc2 × d2（单路 87、接受率 80.1%） |
+| 免 Docker、双击即用 | 路线 T：TWIN-TURBO 一行命令（8082） |
+| 灌 26 万 token 大材料 | Q2 262K 原生 ✅（T 路线用 q4_0 KV 备用配置，见归档） |
+| 思考停不下来 | Coder390 / TWIN-TURBO 均已**模型层修复**，无需补丁 |
 
 ---
 
 ## 🔁 复现
 
 ```powershell
-# 1. 引擎：llama.cpp 官方 Windows CUDA 包（主程序 + cudart 两个 zip 解压到同一目录），b11223 或更新
-# 2. 模型：上方三件套（国内 hf-mirror.com 镜像）
+# ── 路线 N（NInfer · 默认）──
+# 1. WSL2 + Docker Desktop + ghcr.io/iamwavecut/ninfer-all 镜像（见 docs/ninfer-wsl2-deployment.md）
+# 2. 模型：nerkyor Q2LynnStyle-Q4MTP.ninfer（ModelScope / hf-mirror）
 # 3. 启动
-.\scripts\start-twin-turbo-daily.ps1     # 或 README 顶部的一行命令
+桌面双击「启动本地大模型-内网8083.bat」    # 或 scripts/start-ninfer-lan.bat
 # 4. 验证
-curl http://127.0.0.1:8082/health        # 期望 {"status":"ok"}
+curl http://127.0.0.1:8083/health         # 期望 {"status":"ok"}
+
+# ── 路线 T（llama.cpp · 备胎）──
+.\scripts\start-twin-turbo-daily.ps1      # 验证 curl http://127.0.0.1:8082/health
 ```
 
-**验收基线**：384-token 生成 **74–78 tok/s**（服务端计时；±10% 波动来自 MTP 接受率的内容随机性）；prompt cache 命中后长输入秒级。
+**验收基线**：NInfer 路线单发 80-83 tok/s、6 路聚合 272.9（服务端计时）；T 路线 74-78 tok/s。±10% 波动来自 MTP 接受率的内容随机性。
 
 **测量纪律**（本项目所有数字的来源规则）：
 
-1. 只读**服务端计时**（response `timings` / slot `print_timing`），不用客户端耗时差
-2. 单发是噪声（同配置实测 50.6–79.4 都出现过）→ 结论必须**复测一致**
-3. 扫参数必须**倒序复测端点**，排除热漂移假象（本轮"96K 最快 84"即被证伪）
-4. 警惕"刀锋边缘"配置：同一配置多次启动出现双峰 → 不可预测 = 不可用
+1. 只读**服务端计时**（`timings` / `/stats`），不用客户端耗时差
+2. 单发是噪声 → 结论必须**复测一致**；聚合结论至少两批
+3. 跨会话对比不可靠（±10-31% 温控/时钟方差）→ 同会话内相对排序才可信
+4. 「free 0 B」偏保守 → **真实边界必须探针实测**
 
-**测速与扫描脚本**：[`scripts/bench-parallel.py`](scripts/bench-parallel.py)（并发基准，读服务端 timings）· [`scripts/bench-mtp-sweep.ps1`](scripts/bench-mtp-sweep.ps1)（自适应扫参）· [`scripts/bench-ctx-fine.ps1`](scripts/bench-ctx-fine.ps1)（带倒序复测的 ctx 扫描）· [`scripts/start-tt-bench.ps1`](scripts/start-tt-bench.ps1)（参数化启动器）
+**测速与扫描脚本**：[`scripts/bench-one.py`](scripts/bench-one.py)（单发，读服务端 timings）· [`scripts/bench-par.py`](scripts/bench-par.py)（并发基准 + MTP 接受率）· [`scripts/matrix-round9.sh`](scripts/matrix-round9.sh)（48 格矩阵自动跑批）· [`scripts/start-ninfer-lan.bat`](scripts/start-ninfer-lan.bat)（NInfer 双击启动器）
 
 ---
 
@@ -226,34 +205,32 @@ curl http://127.0.0.1:8082/health        # 期望 {"status":"ok"}
 
 </details>
 
-<details>
-
-<summary><b>❌ NVFP4-MTP-LOW（第 1–8 轮旧主力）—— 被 TWIN-TURBO 取代</b></summary>
-
-三方量化对决的速度双冠（79.6 tok/s / 200K），但输出头 Q5_0 + IQ4_XS 精度低于 MID-HIGH 的全 Q8_0，且不带 TWIN-TURBO 的模型层思考修复。完整决策：\[data/tturbo-adoption.md\](data/tturbo-adoption.md)。262K + q4_0 KV 备用配置保留（见 10 秒决策表）。
-
+<details>  
+<summary><b>❌ NVFP4-MTP-LOW（第 1–8 轮旧主力）—— 被 TWIN-TURBO 取代</b></summary>  
+三方量化对决的速度双冠（79.6 tok/s / 200K），但输出头 Q5_0 + IQ4_XS 精度低于 MID-HIGH 的全 Q8_0，且不带 TWIN-TURBO 的模型层思考修复。完整决策：[data/tturbo-adoption.md](data/tturbo-adoption.md)。262K + q4_0 KV 备用配置保留（见 10 秒决策表）。  
 </details>
 
-<details>
-
-<summary><b>❌ 192K+ 上下文 —— VRAM 溢出 −25%</b></summary>
-
-184K 起掉 12%、192K 起 −25%、224K 一样。显存 98% 满后 KV 页被换出到内存。168-176K 刀锋双峰。唯一例外：旧 NVFP4-LOW 配置下 192K 曾可用（权重更小），TWIN-TURBO 的 15.75GB 权重让悬崖前移。
-
+<details>  
+<summary><b>❌ 192K+ 上下文（T 路线）—— VRAM 溢出 −25%</b></summary>  
+184K 起掉 12%、192K 起 −25%、224K 一样。显存 98% 满后 KV 页被换出到内存。168-176K 刀锋双峰。唯一例外：旧 NVFP4-LOW 配置下 192K 曾可用（权重更小），TWIN-TURBO 的 15.75GB 权重让悬崖前移。**NInfer + Q2 路线已突破此限：262K 满窗无悬崖（rk4v4 KV 19KB/token vs q8_0 26KB）。**  
 </details>
 
-
-<details>  
-<summary><b>❌ 运行时思考补丁（reasoning-budget + 模板注入）—— 与模型自带模式系统冲突</b></summary>  
-TWIN-TURBO 在权重层把过度思考训练掉了（−93%），旧双保险叠加后反而更慢、思考更多 → 退役。历史修复思路（对未微调模型仍有效）：\[docs/xhigh-overthinking-fix.md\](docs/xhigh-overthinking-fix.md)、\[docs/reasoning-guide.md\](docs/reasoning-guide.md)  
+<details>  
+<summary><b>❌ 运行时思考补丁（reasoning-budget + 模板注入）—— 与模型自带模式系统冲突</b></summary>  
+TWIN-TURBO 在权重层把过度思考训练掉了（−93%），旧双保险叠加后反而更慢、思考更多 → 退役。历史修复思路（对未微调模型仍有效）：[docs/xhigh-overthinking-fix.md](docs/xhigh-overthinking-fix.md)、[docs/reasoning-guide.md](docs/reasoning-guide.md)  
 </details>
 
-<details>  
-<summary><b>❌ 53 → 1 量化筛选中被排除的（IQ3_S / UD-Q4_K_S / SSMFIX / iMatrix 等）</b></summary>  
-筛选漏斗与排除理由：<a href="#-筛选过程-53--1">原第 8 轮前记录</a> · iMatrix 混合量化（−27% 速度）：\[data/round2-new-results.md\](data/round2-new-results.md) · YaRN 1M（4-5 tok/s）与 262K 硬上限：\[docs/context-limits-and-yarn.md\](docs/context-limits-and-yarn.md)  
+<details>  
+<summary><b>❌ 53 → 1 量化筛选中被排除的（IQ3_S / UD-Q4_K_S / SSMFIX / iMatrix 等）</b></summary>  
+筛选漏斗与排除理由：<a href="#-筛选过程-53--1">原第 8 轮前记录</a> · iMatrix 混合量化（−27% 速度）：[data/round2-new-results.md](data/round2-new-results.md) · YaRN 1M（4-5 tok/s）与 262K 硬上限：[docs/context-limits-and-yarn.md](docs/context-limits-and-yarn.md)  
 </details>
 
-## 📜 十轮调优历程
+<details>  
+<summary><b>❌ KV 格式 rk8v4（NInfer 路线）—— 慢 25% 且 MTP 接受率腰斩</b></summary>  
+四种 KV 格式实测（Q2 @ 262K）：rk4v4 19KB/tok **84-86 tok/s、接受率 67-74%**；fp8 32.6KB 80.7；rk8v4 28.6KB 63.6 且接受率腰斩到 44%；bf16 52.7KB 只能开 ~64-96K 池。结论：**FP4 系（rk4v4）又快又省又稳**，单针捞针三格式全部一字不差。详见 [data/q2-262k-tuning-log.md](data/q2-262k-tuning-log.md) §4。  
+</details>
+
+## 📜 调优历程
 
 | 轮次 | 主题               | 关键收获                                                                                                 |
 | -- | ---------------- | ---------------------------------------------------------------------------------------------------- |
@@ -265,89 +242,112 @@ TWIN-TURBO 在权重层把过度思考训练掉了（−93%），旧双保险叠
 | 6  | **穷尽复查**         | 40+ 参数全排查                                                                                            |
 | 7  | **上下文真相**        | q4_0 KV 让 256K 可用 · 静默封顶与 YaRN 真相                                                                    |
 | 8  | **模型换代**         | **TWIN-TURBO MID-HIGH 转正**：思考 −93%、全 Q8_0、补丁退役                                                       |
-| 9  | **引擎刷新（09-28）**  | **官方 b11146/b11223 CUDA 13.4**：MTP 草稿启用 CUDA 图（PR #28790 后又一白捡）——峰值持平、**下限抬升**（不再有 58-68 的谜之低谷）      |
-| 10 | **终局微调（09-28）**  | MTP 深度复验（3 仍最优）· **DFlash2 否决**（接受率 4%）· 双流 +50% · **上下文悬崖测绘**：160K 定稿                               |
+| 9  | **引擎刷新（09-28）**  | 官方 b11146/b11223 CUDA 13.4：MTP 草稿启用 CUDA 图——峰值持平、**下限抬升**                                            |
+| 10 | **终局微调（09-28）**  | MTP 深度复验（3 仍最优）· DFlash2 否决 · 双流 +50% · **上下文悬崖测绘**：160K 定稿                                          |
+| 11 | **引擎换代（10-11）**  | **NInfer-all 进驻**（WSL2 + Docker）：262K 满窗、mc1-7 并发、视觉常驻、`finalizing` 故障链全部排明                        |
+| 12 | **并发定版（10-12）**  | **Coder390 Q2 转正**：省 3.8GB 换 6 路 · 48+21 格矩阵 · KV 格式对决（rk4v4 胜）· 池天花板 288K · 接受率规律实证              |
 
 ---
 
 ## ❓ FAQ
 
-**Q：为什么不直接开 256K（模型原生最大）？**  
-A：这台卡上 24GB 装不下 256K 的 KV 还保持速度——192K 就开始溢出（−25%）。160K 是"稳定跑"能换到的最大值。要灌 26 万 token 大材料用备用配置（q4_0 KV 的 NVFP4-MTP-LOW，见 10 秒决策）。
+**Q：上下文 262K 是输入还是输出？**  
+A：**输入 + 输出共享**。一条请求的硬上限 = max-context，输入吃掉多少输出就剩多少；输出不固定，由 EOS / max_tokens 参数 / 剩余窗口三层控制。
 
-**Q：q8_0 KV 损失质量吗？**  
-A：近无损。长文召回测试（12K/70% 与 150K/80% 深度）全部通过。
+**Q：Q2 量化这么狠（BPW 3.89），质量掉多少？**  
+A：官方全量三联 GPQA 177（与 FP8 持平）/ MMLU 433（−16，广度受损）/ LCB 90（持平）。65K 深处捞针一字不差。要知识广度用 Q3（但 262K 下只有 1-2 路）。
 
-**Q：为什么不用 vLLM / SGLang？**  
-A：Blackwell Laptop 上它们的显存管理与 GGUF 生态不如 llama.cpp 灵活，NVFP4 权重主要以 GGUF 分发。SGLang/vLLM 是 DFlash2 等"官方模型 + 服务端栈"组合的主场。
+**Q：为什么 mc7 是并发天花板？**  
+A：每路 0.5-1GB 工作区（buffers + 草稿 KV + 状态），mc8 带视觉必爆；mc9 是引擎硬限制（1..8）。
 
-**Q：桌面版 5090 会快多少？**  
-A：prefill 快 2–3 倍、decode 快 1.5–2 倍（575W vs 145W）。**容量结论（KV 量化、悬崖位置随权重体积平移）可参考方法自行复测。**
+**Q：T 路线为什么不直接开 256K？**  
+A：llama.cpp + q8_0 KV（26KB/token）下 192K 就溢出（−25%），160K 是稳定值。NInfer + rk4v4（19KB/token）+ Q2 权重已突破此限：262K 满窗无悬崖。
 
-**Q：16GB 卡怎么办？**  
-A：小档模型 + q8_0 KV + ~96K 上下文；或 IQ3_S（11.3GB）换容量。
+**Q：q8_0 / rk4v4 KV 损失质量吗？**  
+A：均近无损。长文召回测试全部通过（T 路线 12K/150K 深度；NInfer 路线 65K 深处捞针一字不差）。
 
-**Q：可以同时跑多个实例吗？**  
-A：装不下两个 27B。同实例内 `-np 2` 是正解（总吞吐 +50%）。
+**Q：为什么不用 vLLM / SGLang？**  
+A：无 Windows 原生支持（WSL2 里还要再套一层），且 NInfer 的共享 KV 池并发效率实测更高（6 路 272.9 tok/s）。llama.cpp 则提供免 Docker 对照。
 
-**Q：模型支持图像吗？**  
-A：原生 VLM。`--mmproj` 加载（建议自量化 Q8_0 = 600 MB），额外 ~1GB 显存。**注意：视觉组件也占显存，是 ctx 悬崖的一部分。**
+**Q：桌面版 5090 会快多少？**  
+A：prefill 快 2–3 倍、decode 快 1.5–2 倍（575W vs 145W）。容量结论可参考方法自行复测。
+
+**Q：16GB 卡怎么办？**  
+A：路线 T 换小档模型 + q8_0 KV + ~96K；NInfer 路线换更小量化档（Q2 已是当前最小，更大卡才谈得上并发）。
+
+**Q：可以同时跑两个实例吗？**  
+A：装不下两个 27B。NInfer 单容器内 mc6-7 并发是正解（272-285 tok/s）；llama.cpp 路线 `-np 2`。
+
+**Q：模型支持图像吗？**  
+A：两路线都原生 VLM。NInfer：Q2 包内置视觉（`--vision`，OCR 级实测）；T 路线：`--mmproj` 加载（Q8_0 自量化 600MB）。视觉组件都占显存，是并发上限的一部分。
 
 ---
 
 ## 🔧 故障排查
 
-| 症状                                       | 原因与解法                                                  |
-| ---------------------------------------- | ------------------------------------------------------ |
-| 启动即退出、日志无内容                              | 参数不兼容。新版引擎已移除 `--no-mmap`，用 `--load-mode none`         |
-| `failed to allocate buffer for kv cache` | 上下文超出显存。降 `-c`                                         |
-| 启动成功但推理卡死                                | 显存贴边（余量 <200 MiB）。降 8–16K 上下文                          |
-| 同配置忽快忽慢（差 20%+）                          | 显存 98% 满的刀锋边缘。降 ctx 到有余量的档位                            |
-| 生成全是思考、没有正文                              | 未传 `reasoning_effort`；默认 xhigh 会烧光 token               |
-| 输出乱码                                     | 请求体未按 UTF-8 编码（写 JSON 文件 + `curl --data-binary @file`） |
+### NInfer 路线
+
+| 症状 | 原因与解法 |
+| --- | --- |
+| `startup failed \| finalizing target`（毫秒级） | KV 池 + 工作区超显存。**显式指定 `--kv-capacity`**（auto 不可靠）、降并发或降池；默认 KV 是 bf16（52.7KB/token）必爆 |
+| mc8 / 高并发起不来 | 每路 0.5-1GB 工作区。降并发或降池（见 [data/q2-262k-tuning-log.md](data/q2-262k-tuning-log.md) §6） |
+| mc9 报错退出 | 引擎硬限制 `--max-concurrency 1..8` |
+| Docker 引擎起不来、卡「验证」 | Desktop 的 auth enforcer 连 hub.docker.com 超时（~30s+）才放行。只影响冷启动；根治 = WSL2 内直装 docker-ce |
+| mc7 × d8/d9 起不来 | **长草稿也吃工作区**——高并发时草稿长度先降档 |
+| 首启慢（路由校准 51s） | 设备 profile 存 /cache 卷；删卷会重校准 |
+
+### T 路线（llama.cpp）
+
+| 症状 | 原因与解法 |
+| --- | --- |
+| 启动即退出、日志无内容 | 参数不兼容。新版引擎已移除 `--no-mmap`，用 `--load-mode none` |
+| `failed to allocate buffer for kv cache` | 上下文超出显存。降 `-c` |
+| 同配置忽快忽慢（差 20%+） | 显存 98% 满的刀锋边缘。降 ctx 到有余量的档位 |
+| 输出乱码 | 请求体未按 UTF-8 编码（写 JSON 文件 + `curl --data-binary @file`） |
 
 ---
 
-## 📚 完整数据与文档索引（归档区）
+## 📚 完整数据与文档索引
 
-### 历史记录（`data/`）
+### 当前路线（2026-10-11 ~ 10-12）
 
-| 文件                                                                                                                                              | 内容                                                |
-| ----------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------- |
-| [2026-09-28-final-stack-tuning.md](data/2026-09-28-final-stack-tuning.md)                                                                       | **第 9-10 轮**：引擎刷新 / MTP 复验 / DFlash2 / 双流 / 上下文悬崖 |
-| [tturbo-adoption.md](data/tturbo-adoption.md)                                                                                                   | **第 8 轮**：换模决策（NInfer / Bonsai 为什么落选）             |
-| [nmax-3-vs-4-comparison.md](data/nmax-3-vs-4-comparison.md)                                                                                     | MTP 深度严格对比（交叉设计）                                  |
-| [context-scaling-history.md](data/context-scaling-history.md)                                                                                   | 上下文探索全史：88K → 256K                                |
-| [final-benchmark.md](data/final-benchmark.md)                                                                                                   | 最终配置基准（8 轮稳定性 / TTFT / 视觉）                        |
-| [speed-results.md](data/speed-results.md) ｜ [round2-new-results.md](data/round2-new-results.md) ｜ [round3-6-latest.md](data/round3-6-latest.md) | 第 1–6 轮原始数据                                       |
-| [thermal-stress-12min-100rounds.txt](data/thermal-stress-12min-100rounds.txt)                                                                   | 12 分钟满载散热原始日志                                     |
+| 文件 | 内容 |
+| --- | --- |
+| [data/ninfer-vs-turbo.md](data/ninfer-vs-turbo.md) | **对决二总表**：两路线正面对决（定版更新） |
+| [data/q2-262k-tuning-log.md](data/q2-262k-tuning-log.md) | **对决一全记录**：Q2 @ 262K 调优（R5-R11，并发爬梯 / 48 格矩阵 / KV 对决 / 池探针） |
+| [data/dense-vs-flashnext.md](data/dense-vs-flashnext.md) | **对决三**：27B Dense vs Flash-Next 125B MoE |
+| [data/matrix-mc2-7-d2-9-mtp.csv](data/matrix-mc2-7-d2-9-mtp.csv) · [data/matrix-mc2-9-d2-9.csv](data/matrix-mc2-9-d2-9.csv) | 48 格 / 64 格原始矩阵数据 |
+| [docs/ninfer-wsl2-deployment.md](docs/ninfer-wsl2-deployment.md) | NInfer WSL2 + Docker 部署实录与故障档案 |
+| [scripts/start-ninfer-lan.bat](scripts/start-ninfer-lan.bat) | **双击启动器**（内网 8083） |
+| [scripts/matrix-round9.sh](scripts/matrix-round9.sh) · [scripts/bench-par.py](scripts/bench-par.py) · [scripts/bench-one.py](scripts/bench-one.py) | 矩阵 / 并发 / 单发基准脚本（服务端计时） |
+
+### 历史记录（T 路线 llama.cpp 时代，`data/`）
+
+| 文件 | 内容 |
+| --- | --- |
+| [2026-09-28-final-stack-tuning.md](data/2026-09-28-final-stack-tuning.md) | **第 9-10 轮**：引擎刷新 / MTP 复验 / DFlash2 / 双流 / 上下文悬崖 |
+| [tturbo-adoption.md](data/tturbo-adoption.md) | **第 8 轮**：换模决策（NInfer / Bonsai 为什么落选） |
+| [nmax-3-vs-4-comparison.md](data/nmax-3-vs-4-comparison.md) | MTP 深度严格对比（交叉设计） |
+| [context-scaling-history.md](data/context-scaling-history.md) | 上下文探索全史：88K → 256K |
+| [final-benchmark.md](data/final-benchmark.md) | 最终配置基准（8 轮稳定性 / TTFT / 视觉） |
+| [speed-results.md](data/speed-results.md) ｜ [round2-new-results.md](data/round2-new-results.md) ｜ [round3-6-latest.md](data/round3-6-latest.md) | 第 1–6 轮原始数据 |
+| [thermal-stress-12min-100rounds.txt](data/thermal-stress-12min-100rounds.txt) | 12 分钟满载散热原始日志 |
 
 ### 技术文档（`docs/`）
 
-| 文件                                                                                                            | 内容                         |
-| ------------------------------------------------------------------------------------------------------------- | -------------------------- |
-| [context-limits-and-yarn.md](docs/context-limits-and-yarn.md)                                                 | 262K 硬上限 / q4_0 / YaRN 真相  |
-| [windows-self-build-recipe.md](docs/windows-self-build-recipe.md)（[EN](docs/windows-self-build-recipe.en.md)） | 自编译配方（现用官方预编译，此配方保留备用）     |
-| [custom-build-and-mtp-bug.md](docs/custom-build-and-mtp-bug.md)                                               | 自编译四坑 + MTP prefill bug 定位 |
-| [reasoning-guide.md](docs/reasoning-guide.md) ｜ [xhigh-overthinking-fix.md](docs/xhigh-overthinking-fix.md)   | 思考控制（对未微调模型仍有效）            |
-| [vision-setup.md](docs/vision-setup.md)                                                                       | 视觉配置与 mmproj 自量化           |
-| [ACKNOWLEDGMENTS.md](docs/ACKNOWLEDGMENTS.md)                                                                 | 致谢与引用来源                    |
-
-### 历史图表（`assets/`）
-
-chart1-chart11（速度对决 / 上下文容量 / 散热 / 筛选漏斗 / 构建对比 / 参数红黑榜等）保留在 [assets/](./assets)，生成脚本在 [tools/](./tools)。
+| 文件 | 内容 |
+| --- | --- |
+| [ninfer-wsl2-deployment.md](docs/ninfer-wsl2-deployment.md) | NInfer WSL2 + Docker 部署与故障档案 |
+| [dense-vs-flashnext.md（data/）](data/dense-vs-flashnext.md) | 架构对决（27B vs 125B MoE） |
+| [context-limits-and-yarn.md](docs/context-limits-and-yarn.md) | 262K 硬上限 / q4_0 / YaRN 真相 |
+| [xhigh-overthinking-fix.md](docs/xhigh-overthinking-fix.md) · [reasoning-guide.md](docs/reasoning-guide.md) | 思考控制历史方案（对未微调模型仍有效） |
 
 ---
 
 ## 许可与法律
 
-| 内容                               | 许可              |
-| -------------------------------- | --------------- |
-| 脚本代码（`scripts/`、`tools/`）        | **MIT License** |
-| 文档与数据（README、`docs/`、`data/`、图表） | **CC BY 4.0**   |
-
-第三方：Qwen3.8-27B 权重 **Apache 2.0**（[Qwen 官方](https://huggingface.co/Qwen/Qwen3.8-27B)）· TWIN-TURBO GGUF 见其模型卡（[esatapedico](https://huggingface.co/esatapedico)）· llama.cpp **MIT** · CUDA 按 NVIDIA 许可。**本仓库不含任何模型权重**，使用者自行从原始来源获取。免责与商标声明见 [LICENSE](LICENSE) 与 [docs/ACKNOWLEDGMENTS.md](docs/ACKNOWLEDGMENTS.md)。
+本仓库所有实测数据与文档按 **CC BY 4.0** 授权，脚本按 **MIT** 授权。Qwen3.8 系列模型权重遵循其原始许可证（Apache-2.0 / Qwen 许可）。
 
 ## 致谢
 
-**Alibaba / Qwen 团队**（基座）· **DavidAU**（TWIN-TURBO 思考修复调教）· **esatapedico**（NVFP4 GGUF 家族）· **unsloth / DASLab**（量化方法）· **llama.cpp 社区**（引擎、MTP、CUDA graphs）· **z-lab / NVIDIA**（DFlash2 —— 虽然在本项目被否，但方法本身值得尊敬）
+Qwen 团队（Qwen3.8 / Flash-Next 基座）· NInfer-all 与 llama.cpp 社区 · esatapedico（TWIN-TURBO NVFP4）· nerkyor（Coder390 后训练）· ISTA-DASLab（GSQ-RCO 量化）· 桌面与笔记本 5090 上所有先行者的公开实测。

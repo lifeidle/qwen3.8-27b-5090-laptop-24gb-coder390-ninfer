@@ -4,21 +4,7 @@
 
 [中文版 →](./README.md) ｜ [Scripts →](./scripts) ｜ [Raw data →](./data)
 
-![Model](https://img.shields.io/badge/model-Coder390%20Q2%20LynnStyle-7c3aed)
-
-![Platform](https://img.shields.io/badge/platform-RTX%205090%20Laptop%2024GB-76b900)
-
-![Aggregate](https://img.shields.io/badge/aggregate-272.9%20~20316.3%20peak-d97706)
-
-![Context](https://img.shields.io/badge/context-262K%20×%206 lanes-2563eb)
-
-![Vision](https://img.shields.io/badge/vision-OCR%20grade%20resident-059669)
-
-![Engine](https://img.shields.io/badge/NInfer--all%200.12-WSL2%20%2B%20Docker-0ea5e9)
-
-![Alt](https://img.shields.io/badge/fallback-llama.cpp%20b11223%20%2B%20TWIN--TURBO-6b7280)
-
-![License](https://img.shields.io/badge/license-MIT%20%2B%20CC%20BY%204.0-059669)
+![Model](https://img.shields.io/badge/model-Coder390%20Q2%20LynnStyle-7c3aed) ![Platform](https://img.shields.io/badge/platform-RTX%205090%20Laptop%2024GB-76b900) ![Aggregate](https://img.shields.io/badge/aggregate-272.9%20~20316.3%20peak-d97706) ![Context](https://img.shields.io/badge/context-262K%20×%206 lanes-2563eb) ![Vision](https://img.shields.io/badge/vision-OCR%20grade%20resident-059669) ![Engine](https://img.shields.io/badge/NInfer--all%200.12-WSL2%20%2B%20Docker-0ea5e9) ![Alt](https://img.shields.io/badge/fallback-llama.cpp%20b11223%20%2B%20TWIN--TURBO-6b7280) ![License](https://img.shields.io/badge/license-MIT%20%2B%20CC%20BY%204.0-059669)
 
 ---
 
@@ -59,17 +45,15 @@
 
 **Three hard rules** (48 + 21 cells, three sessions): ① MTP acceptance falls monotonically with draft length (80% at d2 → 28-37% at d9) — **d5+ is a liability on Q2**; ② each extra lane ≈ +0.5-1 GB workspace — mc7 is the ceiling at 262K+vision; ③ the pool can be oversized to 288K (probe-verified), but a single request stays capped at the native 262,144 window.
 
-![concurrency ladder](assets/chart15-concurrency-ladder.svg)
-
-![MTP acceptance](assets/chart16-mtp-acceptance.svg)
+| concurrency ladder (aggregate + per-lane peak) | MTP acceptance vs draft length |
+|---|---|
+| ![concurrency ladder](assets/chart15-concurrency-ladder.svg) | ![MTP acceptance](assets/chart16-mtp-acceptance.svg) |
 
 ### KV format duel: why rk4v4 (FP4)
 
-![KV format](assets/chart17-kv-format.svg)
-
-### KV pool ceiling: 288K (probe-verified)
-
-![pool ceiling](assets/chart18-pool-ceiling.svg)
+| KV format duel (rk4v4 wins) | KV pool ceiling (288K at mc6) |
+|---|---|
+| ![KV format](assets/chart17-kv-format.svg) | ![pool ceiling](assets/chart18-pool-ceiling.svg) |
 
 Full log → [`data/q2-262k-tuning-log.md`](./data/q2-262k-tuning-log.md)
 

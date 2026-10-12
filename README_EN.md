@@ -13,7 +13,46 @@
 
 ---
 
-## 🆚 2026-10-11: Two-route showdown — native llama.cpp vs NInfer (WSL2 + Docker)
+## 🥊 Three Showdowns (overview)
+
+| # | Showdown | Final answer |
+|---|---|---|
+| **1** | **Concurrency trade-off** (final, 10-12): single-lane speed vs multi-way throughput, Q2 @ 262K full window + vision | **mc6 × d3**: aggregate 272.9 (peak 316.3), 76/lane, native 262K window + 288K pool |
+| **2** | **Deployment route**: native llama.cpp vs NInfer (WSL2 + Docker) | Both work; NInfer +10-25% faster, llama.cpp zero-Docker |
+| **3** | **Model architecture**: 27B Dense vs Flash-Next 125B MoE | On 24GB single card → **27B Dense is the only way**; Flash-Next needs 2 GPUs |
+
+---
+
+## 🥊 Showdown 1 · Concurrency trade-off (final): Q2 @ 262K full window + vision
+
+**Smaller model, full window, more lanes** — Q2 LynnStyle (12.6 GiB) is 3.8 GB lighter than Q3, and at a 262K pool all of that becomes concurrency workspace: Q3 cannot even start 2 lanes, **Q2 climbs to 7**.
+
+| metric | value |
+|---|---:|
+| Aggregate (6 lanes) | **272.9 tok/s** stable / **316.3 peak** (all-time high) |
+| Single-request decode | 80-83 tok/s |
+| Per-lane under load | 59-76 tok/s |
+| Context | 262,144 native window (pool 294,912 = +32K queue headroom; measured ceiling 288K) |
+| MTP acceptance | 59-64% (d3); 80% at d2 |
+| Vision | ✅ OCR-grade |
+
+![concurrency ladder](assets/chart15-concurrency-ladder.svg)
+
+![MTP acceptance](assets/chart16-mtp-acceptance.svg)
+
+### KV format duel: why rk4v4 (FP4)
+
+![KV format](assets/chart17-kv-format.svg)
+
+### KV pool ceiling: 288K (probe-verified)
+
+![pool ceiling](assets/chart18-pool-ceiling.svg)
+
+Full log → [`data/q2-262k-tuning-log.md`](./data/q2-262k-tuning-log.md)
+
+---
+
+## 🥊 Showdown 2 · Deployment route: native llama.cpp vs NInfer (WSL2 + Docker)
 
 Same 24GB card, two generations of the daily driver, all numbers from server-side timings:
 
@@ -36,7 +75,42 @@ One-line pick: **want zero-fuss + vision + double-click → llama.cpp; want the 
 
 ---
 
+## 🥊 Showdown 3 · Model architecture: 27B Dense (this repo) vs Flash-Next 125B MoE
+
+Same family, two architecture routes: dense 27B vs 125B MoE (512 experts, ~6B active per token). Flash-Next is smarter, but its appetite is **two-GPU-class**.
+
+| | **27B Dense** (this repo) | **Flash-Next 125B MoE** |
+|---|---|---|
+| Weights | 15.75-17.3 GB | Q2_0 **35.9 GiB** + n-gram table **26.8 GiB** |
+| 24GB laptop | ✅ fully on-GPU + vision + 6-way concurrency | ❌ no fit; experts stream from host RAM or disk |
+| Desktop 5090 short-answer decode | 236 tok/s (DFlash2, official ref) | 136 tok/s (experts on GPU, **needs 2 cards**) |
+| Experts in host RAM | — | 74 tok/s (**−69%**) |
+| Experts cold from disk | — | 25 tok/s (not interactive) |
+| Quality | Coder390: GPQA 87.4% / MMLU 449 / LCB 92 | Q2_0 (2×5090): **AIME 93.3%** / GPQA-D 86.4% |
+| Positioning | best single-card value | math/reasoning specialist for multi-GPU rigs |
+
+**Verdict**: under a 24GB constraint, 27B Dense is the only route that keeps weights + KV + vision + multi-way concurrency all on one card. Flash-Next's 6B-active MoE does top the math benchmarks (AIME 93.3%), but that edge is paid for with a second GPU. Details → [`data/dense-vs-flashnext.md`](./data/dense-vs-flashnext.md)
+
+![dense-vs-moe](assets/chart19-dense-vs-moe.svg)
+
+---
+
 ## 🏆 Current Champion (copy-paste ready)
+
+### 🅝 Route N: Coder390 Q2 + NInfer (final since 2026-10-12 · daily default · LAN-capable)
+
+Double-click **`scripts/start-ninfer-lan.bat`** (auto-starts Docker → launches the container → health check → prints LAN URLs). Equivalent command:
+
+```powershell
+docker run -d --gpus all -p 8083:8080 --ulimit memlock=-1 --name ninfer-coder390 -v "D:\models\ninfer:/models" -v ninfer-cache:/cache ghcr.io/iamwavecut/ninfer-all:latest serve /models/Qwen3.8-27B-Coder390-EfficientThink-Q2LynnStyle-Q4MTP.ninfer --model-id qwen3.8-27b-coder390-q2-q4mtp --max-context 262144 --kv-capacity 294912 --kv-dtype rk4v4 --max-concurrency 6 --spec mtp --draft-tokens 3 --vision
+```
+
+| **6-way × 262K window** | aggregate **272.9** (peak 316.3) | per-lane 59-76 | OCR-grade vision | LAN `:8083` |
+|---|---|---|---|---|
+
+> Endpoint: `http://<this-PC-IP>:8083/v1/chat/completions` · model `qwen3.8-27b-coder390-q2-q4mtp` · stop: `docker rm -f ninfer-coder390`
+
+### 🅣 Route T: TWIN-TURBO + llama.cpp (former single-card king · zero-Docker fallback)
 
 ![current champion](assets/chart12-champion-stack.svg)
 

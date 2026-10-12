@@ -8,6 +8,8 @@
 
 ![Platform](https://img.shields.io/badge/platform-RTX%205090%20Laptop%2024GB-76b900)
 
+
+
 ![Throughput](https://img.shields.io/badge/decode-74~78%20tok%2Fs-d97706)
 
 ![Context](https://img.shields.io/badge/context-160K%20max%20stable-2563eb)
@@ -18,20 +20,78 @@
 
 ---
 
-## 🆚 2026-10-11 新增：双路线对决 —— llama.cpp 原生 vs NInfer（WSL2 + Docker）
+## 🥊 三大对决总览
+
+| #     | 对决                                                | 最终答案                                                    |
+| ----- | ------------------------------------------------- | ------------------------------------------------------- |
+| **一** | **并发取舍**（10-12 定版）：单路满速 vs 多路吞吐，Q2 @ 262K 满窗 + 视觉 | **mc6 × d3**：聚合 272.9（峰值 316.3）、单路 76、262K 原生窗 + 288K 池 |
+| **二** | **部署路线**：llama.cpp 原生 vs NInfer（WSL2 + Docker）    | 两条都可跑；NInfer 快 10-25%、llama.cpp 免 Docker                |
+| **三** | **模型架构**：27B Dense vs Flash-Next 125B MoE         | 24GB 单卡 → **27B Dense 唯一正解**；Flash-Next 需双卡起步           |
+
+---
+
+## 🥊 对决一 · 并发取舍（2026-10-12 定版）：Q2 @ 262K 满窗 + 视觉
+
+**模型换小、窗口开满、并发拉高**——Q2 LynnStyle（12.6 GiB）比 Q3 轻 3.8GB，这 3.8GB 在 262K 池下全部变成并发工作区：Q3 连 2 路都起不来，**Q2 一路爬到 7 路**。
+
+### 定版配置与成绩
+
+```bash
+--max-context 262144 --kv-capacity 294912 --kv-dtype rk4v4 \
+--max-concurrency 6 --spec mtp --draft-tokens 3 --vision
+```
+
+| 指标        |                                             数值 |
+| --------- | ---------------------------------------------: |
+| 聚合吞吐（6 路） |        **272.9 tok/s** 稳定 / **316.3 峰值**（历史最高） |
+| 单发 decode |                                    80-83 tok/s |
+| 并发时单路     |                                    59-76 tok/s |
+| 上下文       | 262,144 原生满窗（池 294,912 = +32K 排队余量，天花板实测 288K） |
+| MTP 接受率   |                            59-64%（d3）；d2 档 80% |
+| 视觉        |                                    ✅ OCR 级图片理解 |
+
+### 并发数怎么选（三轮会话验证，±5-9% 方差）
+
+| 路数        |        聚合 |   单路峰值 | 适合                  |
+| --------- | --------: | -----: | ------------------- |
+| mc1       |  83.4（单发） |   83.4 | 极限单任务（无视觉可到 262K）   |
+| mc2       |     137.9 | **87** | 双开，接近满速             |
+| mc4       |     215.3 |     77 | 均衡                  |
+| **mc6 ★** | **272.9** |     76 | **定版：总吞吐与单路体感的平衡点** |
+| mc7       |     316.3 |     59 | 跑批极限（8 路带视觉全灭）      |
+
+**三条硬规律**（48 格 + 21 格复测，三轮会话背书）：① MTP 接受率随草稿长度单调跌（d2 80% → d9 28-37%），**d5 以上是负资产**；② 每加一路 ≈ +0.5-1GB 工作区，mc7 是 262K+视觉的并发天花板；③ 池可超配到 288K（探针实测），但单请求仍封顶原生窗口 262,144。
+
+![并发爬梯](assets/chart15-concurrency-ladder.svg)
+
+![MTP接受率](assets/chart16-mtp-acceptance.svg)
+
+### KV 格式对决：为什么选 rk4v4（FP4）
+
+![KV格式](assets/chart17-kv-format.svg)
+
+### KV 池天花板：288K（探针实测）
+
+![池天花板](assets/chart18-pool-ceiling.svg)
+
+完整记录（含 KV 格式对决、池探针、故障档案）→ [`data/q2-262k-tuning-log.md`](./data/q2-262k-tuning-log.md)
+
+---
+
+## 🥊 对决二 · 部署路线：llama.cpp 原生 vs NInfer（WSL2 + Docker）
 
 同一块 24GB 卡，两代主力方案正面对决，全部数字为服务端计时口径：
 
-| 指标 | TWIN-TURBO + llama.cpp（本页主角） | Coder390 Q3 LynnStyle + NInfer（新路线） |
-|---|---:|---:|
-| 单请求 decode | 74-78 tok/s | **84-86 tok/s**（+11~15%） |
-| 单请求上下文 | 160K | **262,144 满窗口** |
-| 4 路并发聚合 | ~110-120 tok/s | **227.7 tok/s** |
-| prefill | ~1,675 tok/s | 1,395 tok/s |
-| 满载惩罚（65K） | 重 | 仅降 12-18% |
-| 质量三联（官方全量） | 无公开数据 | **GPQA 173 / MMLU 449 / LCB 92** |
-| 反「停不下来」 | 思考 −93%（模型层） | 94K 截断 13→3（模型层） |
-| 部署 | ★ 双击即用 | ★★★ WSL2 + Docker（官方镜像） |
+| 指标         | TWIN-TURBO + llama.cpp（本页主角） | Coder390 Q3 LynnStyle + NInfer（新路线） |
+| ---------- | ---------------------------: | ----------------------------------: |
+| 单请求 decode |                  74-78 tok/s |            **84-86 tok/s**（+11~15%） |
+| 单请求上下文     |                         160K |                     **262,144 满窗口** |
+| 4 路并发聚合    |               ~110-120 tok/s |                     **227.7 tok/s** |
+| prefill    |                 ~1,675 tok/s |                         1,395 tok/s |
+| 满载惩罚（65K）  |                            重 |                           仅降 12-18% |
+| 质量三联（官方全量） |                        无公开数据 |    **GPQA 173 / MMLU 449 / LCB 92** |
+| 反「停不下来」    |                 思考 −93%（模型层） |                    94K 截断 13→3（模型层） |
+| 部署         |                       ★ 双击即用 |             ★★★ WSL2 + Docker（官方镜像） |
 
 - 📊 完整数据与选型建议 → [`data/ninfer-vs-turbo.md`](./data/ninfer-vs-turbo.md)
 - 🔧 NInfer 部署实录（含 `finalizing target` 三连炸根因链、KV 格式实测单价、双 Profile 启动脚本）→ [`docs/ninfer-wsl2-deployment.md`](./docs/ninfer-wsl2-deployment.md)
@@ -41,7 +101,42 @@
 
 ---
 
-## 🏆 当前主力（Current Champion — 直接照抄）
+## 🥊 对决三 · 模型架构：27B Dense（本仓主角）vs Flash-Next 125B MoE
+
+同族两条架构路线：稠密 27B vs 125B MoE（512 专家，每 token 激活 ~6B）。Flash-Next 更聪明，但它的胃口是**双卡级**的。
+
+|                   | **27B Dense**（本仓）                       | **Flash-Next 125B MoE**                    |
+| ----------------- | --------------------------------------- | ------------------------------------------ |
+| 权重                | 15.75-17.3 GB                           | Q2_0 **35.9 GiB** + n-gram 表 **26.8 GiB**  |
+| 24GB 单卡笔记本        | ✅ 原生全 GPU + 视觉 + 6 路并发                  | ❌ 装不下；专家必须主机内存/磁盘流式                        |
+| 桌面 5090 短答 decode | 236 tok/s（DFlash2 官方口径）                 | 136 tok/s（专家全 GPU，**需 2 卡**）               |
+| 专家在主机内存           | —                                       | 74 tok/s（**−69%**）                         |
+| 专家磁盘冷读            | —                                       | 25 tok/s（不可交互）                             |
+| 质量                | Coder390：GPQA 87.4% / MMLU 449 / LCB 92 | Q2_0（双 5090）：**AIME 93.3%** / GPQA-D 86.4% |
+| 定位                | 单卡性价比之王                                 | 多卡工作站的数学/推理特化                              |
+
+**本仓结论**：24GB 约束下 27B Dense 是唯一能「全 GPU 常驻 + 视觉 + 多路并发」的路线。Flash-Next 的 6B 激活 MoE 在数学推理上确有上限优势（AIME 93.3%），但那需要第二张卡买单。详细数据 → [`data/dense-vs-flashnext.md`](./data/dense-vs-flashnext.md)
+
+![dense-vs-moe](assets/chart19-dense-vs-moe.svg)
+
+---
+
+## 🏆 当前主力（双路线并列 · 按需切换）
+
+### 🅝 路线 N：Coder390 Q2 + NInfer（2026-10-12 定版 · 日常默认 · 内网可访问）
+
+桌面双击 **`启动本地大模型-内网8083.bat`**：自动拉起 Docker → 起容器 → 健康检查 → 打印内网地址（首次内网访问需在防火墙放行 8083）。等价命令：
+
+```powershell
+docker run -d --gpus all -p 8083:8080 --ulimit memlock=-1 --name ninfer-coder390 -v "D:\models\ninfer:/models" -v ninfer-cache:/cache ghcr.io/iamwavecut/ninfer-all:latest serve /models/Qwen3.8-27B-Coder390-EfficientThink-Q2LynnStyle-Q4MTP.ninfer --model-id qwen3.8-27b-coder390-q2-q4mtp --max-context 262144 --kv-capacity 294912 --kv-dtype rk4v4 --max-concurrency 6 --spec mtp --draft-tokens 3 --vision
+```
+
+| **6 路并发 × 262K 满窗** | 聚合 **272.9**（峰值 316.3） | 单路 59-76 | 视觉 OCR 级 | 内网 `:8083` |
+| ------------------- | ---------------------- | -------- | -------- | ---------- |
+
+> 端点：`http://<本机IP>:8083/v1/chat/completions` · model 名 `qwen3.8-27b-coder390-q2-q4mtp` · 停止：`docker rm -f ninfer-coder390`
+
+### 🅣 路线 T：TWIN-TURBO + llama.cpp（前单卡王 · 免 Docker 备胎）
 
 ![当前主力配置](assets/chart12-champion-stack.svg)
 
@@ -131,15 +226,22 @@ curl http://127.0.0.1:8082/health        # 期望 {"status":"ok"}
 
 </details>
 
-<details>  
-<summary><b>❌ NVFP4-MTP-LOW（第 1–8 轮旧主力）—— 被 TWIN-TURBO 取代</b></summary>  
-三方量化对决的速度双冠（79.6 tok/s / 200K），但输出头 Q5_0 + IQ4_XS 精度低于 MID-HIGH 的全 Q8_0，且不带 TWIN-TURBO 的模型层思考修复。完整决策：\[data/tturbo-adoption.md\](data/tturbo-adoption.md)。262K + q4_0 KV 备用配置保留（见 10 秒决策表）。  
+<details>
+
+<summary><b>❌ NVFP4-MTP-LOW（第 1–8 轮旧主力）—— 被 TWIN-TURBO 取代</b></summary>
+
+三方量化对决的速度双冠（79.6 tok/s / 200K），但输出头 Q5_0 + IQ4_XS 精度低于 MID-HIGH 的全 Q8_0，且不带 TWIN-TURBO 的模型层思考修复。完整决策：\[data/tturbo-adoption.md\](data/tturbo-adoption.md)。262K + q4_0 KV 备用配置保留（见 10 秒决策表）。
+
 </details>
 
-<details>  
-<summary><b>❌ 192K+ 上下文 —— VRAM 溢出 −25%</b></summary>  
-184K 起掉 12%、192K 起 −25%、224K 一样。显存 98% 满后 KV 页被换出到内存。168-176K 刀锋双峰。唯一例外：旧 NVFP4-LOW 配置下 192K 曾可用（权重更小），TWIN-TURBO 的 15.75GB 权重让悬崖前移。  
+<details>
+
+<summary><b>❌ 192K+ 上下文 —— VRAM 溢出 −25%</b></summary>
+
+184K 起掉 12%、192K 起 −25%、224K 一样。显存 98% 满后 KV 页被换出到内存。168-176K 刀锋双峰。唯一例外：旧 NVFP4-LOW 配置下 192K 曾可用（权重更小），TWIN-TURBO 的 15.75GB 权重让悬崖前移。
+
 </details>
+
 
 <details>  
 <summary><b>❌ 运行时思考补丁（reasoning-budget + 模板注入）—— 与模型自带模式系统冲突</b></summary>  

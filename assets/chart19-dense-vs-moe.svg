@@ -1,0 +1,32 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="840" height="400" viewBox="0 0 840 400" font-family="'Segoe UI','Microsoft YaHei',system-ui,sans-serif">
+  <rect width="840" height="400" fill="#ffffff"/>
+  <text x="420" y="26" text-anchor="middle" font-size="17" font-weight="bold" fill="#1f2937">权重体积对决：27B Dense（单卡 24GB）vs Flash-Next 125B MoE（双卡起步）</text>
+  <text x="420" y="45" text-anchor="middle" font-size="12" fill="#6b7280">横向条 = 权重 GiB · Flash-Next 还需要 26.8 GiB 的 n-gram 草稿表（虚线框）</text>
+  <!-- rows: TT 15.75 / Coder390 Q3 17.3 / Coder390 Q2 12.6 / FN 35.9(+26.8) scale 16px per GiB -->
+  <g font-size="13" fill="#374151">
+    <text x="240" y="95" text-anchor="end">TWIN-TURBO NVFP4</text>
+    <text x="240" y="175" text-anchor="end">Coder390 Q3 LynnStyle</text>
+    <text x="240" y="255" text-anchor="end">Coder390 Q2 LynnStyle ★</text>
+    <text x="240" y="335" text-anchor="end">Flash-Next Q2_0 MoE</text>
+  </g>
+  <rect x="250" y="72" width="252" height="36" rx="4" fill="#2563eb"/>
+  <rect x="250" y="152" width="277" height="36" rx="4" fill="#7c3aed"/>
+  <rect x="250" y="232" width="202" height="36" rx="4" fill="#10b981"/>
+  <rect x="250" y="312" width="574" height="36" rx="4" fill="#ef4444"/>
+  <rect x="824" y="312" width="0" height="36" fill="none"/>
+  <!-- ngram dashed extension (overflows viewbox intentionally clipped, add label) -->
+  <g font-size="12.5" fill="#ffffff" font-weight="bold">
+    <text x="260" y="96">15.75</text><text x="260" y="176">17.3</text><text x="260" y="256">12.6</text><text x="260" y="336">35.9</text>
+  </g>
+  <g font-size="12.5" fill="#374151" font-weight="bold">
+    <text x="512" y="96">✅ 单卡 24GB 原生</text>
+    <text x="537" y="176">✅ 单卡 24GB 原生</text>
+    <text x="462" y="256">✅ 单卡 + 视觉 + 6 路</text>
+  </g>
+  <text x="700" y="336" font-size="12" fill="#ffffff">…+ 26.8 n-gram</text>
+  <!-- threshold line at 24GB usable ~23.86 -->
+  <line x1="632" y1="60" x2="632" y2="360" stroke="#dc2626" stroke-width="1.5" stroke-dasharray="8 4"/>
+  <text x="638" y="72" font-size="12" fill="#dc2626" font-weight="bold">24GB 单卡可用上限</text>
+  <text x="638" y="88" font-size="11.5" fill="#6b7280">越线部分必须流式/上第二张卡</text>
+  <text x="420" y="388" text-anchor="middle" font-size="12" fill="#9ca3af">Flash-Next 的专家流式代价：主机内存 74 tok/s（−69%）· 磁盘冷读 25 tok/s —— 数据源：NInfer-all 官方参考（桌面 5090）</text>
+</svg>

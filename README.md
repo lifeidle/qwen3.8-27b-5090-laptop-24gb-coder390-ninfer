@@ -4,21 +4,7 @@
 
 [English →](./README_EN.md) ｜ [工具脚本 →](./scripts) ｜ [原始数据 →](./data)
 
-![Model](https://img.shields.io/badge/model-Coder390%20Q2%20LynnStyle-7c3aed)
-
-![Platform](https://img.shields.io/badge/platform-RTX%205090%20Laptop%2024GB-76b900)
-
-![Aggregate](https://img.shields.io/badge/aggregate-272.9%20~20316.3%20peak-d97706)
-
-![Context](https://img.shields.io/badge/context-262K%20×%206路-2563eb)
-
-![Vision](https://img.shields.io/badge/vision-OCR%20级常驻-059669)
-
-![Engine](https://img.shields.io/badge/NInfer--all%200.12-WSL2%20%2B%20Docker-0ea5e9)
-
-![Alt](https://img.shields.io/badge/备胎-llama.cpp%20b11223%20%2B%20TWIN--TURBO-6b7280)
-
-![License](https://img.shields.io/badge/license-MIT%20%2B%20CC%20BY%204.0-059669)
+![Model](https://img.shields.io/badge/model-Coder390%20Q2%20LynnStyle-7c3aed) ![Platform](https://img.shields.io/badge/platform-RTX%205090%20Laptop%2024GB-76b900) ![Aggregate](https://img.shields.io/badge/aggregate-272.9%20~20316.3%20peak-d97706) ![Context](https://img.shields.io/badge/context-262K%20×%206路-2563eb) ![Vision](https://img.shields.io/badge/vision-OCR%20级常驻-059669) ![Engine](https://img.shields.io/badge/NInfer--all%200.12-WSL2%20%2B%20Docker-0ea5e9) ![Alt](https://img.shields.io/badge/备胎-llama.cpp%20b11223%20%2B%20TWIN--TURBO-6b7280) ![License](https://img.shields.io/badge/license-MIT%20%2B%20CC%20BY%204.0-059669)
 
 ---
 
@@ -64,19 +50,17 @@
 
 **三条硬规律**（48 格 + 21 格复测，三轮会话背书）：① MTP 接受率随草稿长度单调跌（d2 80% → d9 28-37%），**d5 以上是负资产**；② 每加一路 ≈ +0.5-1GB 工作区，mc7 是 262K+视觉的并发天花板；③ 池可超配到 288K（探针实测），但单请求仍封顶原生窗口 262,144。
 
-![并发爬梯](assets/chart15-concurrency-ladder.svg)
-
-![MTP接受率](assets/chart16-mtp-acceptance.svg)
+| 并发爬梯（聚合 + 单路峰值） | MTP 接受率 vs 草稿长度 |
+|---|---|
+| ![并发爬梯](assets/chart15-concurrency-ladder.svg) | ![MTP接受率](assets/chart16-mtp-acceptance.svg) |
 
 ### KV 格式对决：为什么选 rk4v4（FP4）
 
-![KV格式](assets/chart17-kv-format.svg)
+| KV 格式对决（rk4v4 胜出） | KV 池天花板（mc6 实测 288K） |
+|---|---|
+| ![KV格式](assets/chart17-kv-format.svg) | ![池天花板](assets/chart18-pool-ceiling.svg) |
 
-### KV 池天花板：288K（探针实测）
-
-![池天花板](assets/chart18-pool-ceiling.svg)
-
-完整记录（含 KV 格式对决、池探针、故障档案）→ [`data/q2-262k-tuning-log.md`](./data/q2-262k-tuning-log.md)
+完整记录（含故障档案）→ [`data/q2-262k-tuning-log.md`](./data/q2-262k-tuning-log.md)
 
 ---
 

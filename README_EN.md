@@ -1,15 +1,24 @@
-# Qwen3.8-27B · Single-card 24GB Limit Tuning Log
+# Qwen3.8 · RTX 5090 Laptop 24GB Limit Log
 
-**Pushing TWIN-TURBO to the practical limits of an RTX 5090 Laptop 24GB — every number is a controlled measurement**
+**The complete showdown record for the Qwen3.8 family on this 24GB laptop card — 27B Dense with dual engine routes, 6-way concurrency × 262K full window, 316.3 tok/s aggregate peak, every number server-side timed**
 
 [中文版 →](./README.md) ｜ [Scripts →](./scripts) ｜ [Raw data →](./data)
 
-[![Model](https://img.shields.io/badge/model-Qwen3.8--27B%20TWIN--TURBO-7c3aed)](https://huggingface.co/Qwen/Qwen3.8-27B)
-[![Platform](https://img.shields.io/badge/platform-RTX%205090%20Laptop%2024GB-76b900)]()
-[![Throughput](https://img.shields.io/badge/decode-74~78%20tok%2Fs-d97706)]()
-[![Context](https://img.shields.io/badge/context-160K%20max%20stable-2563eb)]()
-[![Engine](https://img.shields.io/badge/llama.cpp-b11223%20CUDA%2013.4-0ea5e9)]()
-[![License](https://img.shields.io/badge/license-MIT%20%2B%20CC%20BY%204.0-059669)](#license)
+![Model](https://img.shields.io/badge/model-Coder390%20Q2%20LynnStyle-7c3aed)
+
+![Platform](https://img.shields.io/badge/platform-RTX%205090%20Laptop%2024GB-76b900)
+
+![Aggregate](https://img.shields.io/badge/aggregate-272.9%20~20316.3%20peak-d97706)
+
+![Context](https://img.shields.io/badge/context-262K%20×%206 lanes-2563eb)
+
+![Vision](https://img.shields.io/badge/vision-OCR%20grade%20resident-059669)
+
+![Engine](https://img.shields.io/badge/NInfer--all%200.12-WSL2%20%2B%20Docker-0ea5e9)
+
+![Alt](https://img.shields.io/badge/fallback-llama.cpp%20b11223%20%2B%20TWIN--TURBO-6b7280)
+
+![License](https://img.shields.io/badge/license-MIT%20%2B%20CC%20BY%204.0-059669)
 
 ---
 
@@ -27,6 +36,8 @@
 
 **Smaller model, full window, more lanes** — Q2 LynnStyle (12.6 GiB) is 3.8 GB lighter than Q3, and at a 262K pool all of that becomes concurrency workspace: Q3 cannot even start 2 lanes, **Q2 climbs to 7**.
 
+### Final config & results
+
 | metric | value |
 |---|---:|
 | Aggregate (6 lanes) | **272.9 tok/s** stable / **316.3 peak** (all-time high) |
@@ -35,6 +46,18 @@
 | Context | 262,144 native window (pool 294,912 = +32K queue headroom; measured ceiling 288K) |
 | MTP acceptance | 59-64% (d3); 80% at d2 |
 | Vision | ✅ OCR-grade |
+
+### How to pick the lane count (three sessions, ±5-9% variance)
+
+| lanes | aggregate | per-lane peak | fits |
+|---|---:|---:|---|
+| mc1 | 83.4 (single) | 83.4 | extreme single task (262K without vision) |
+| mc2 | 137.9 | **87** | two-way, near full speed |
+| mc4 | 215.3 | 77 | balanced |
+| **mc6 ★** | **272.9** | 76 | **final: the balance point** |
+| mc7 | 316.3 | 59 | batch limit (8-way + vision all fail) |
+
+**Three hard rules** (48 + 21 cells, three sessions): ① MTP acceptance falls monotonically with draft length (80% at d2 → 28-37% at d9) — **d5+ is a liability on Q2**; ② each extra lane ≈ +0.5-1 GB workspace — mc7 is the ceiling at 262K+vision; ③ the pool can be oversized to 288K (probe-verified), but a single request stays capped at the native 262,144 window.
 
 ![concurrency ladder](assets/chart15-concurrency-ladder.svg)
 
@@ -56,22 +79,19 @@ Full log → [`data/q2-262k-tuning-log.md`](./data/q2-262k-tuning-log.md)
 
 Same 24GB card, two generations of the daily driver, all numbers from server-side timings:
 
-| metric | TWIN-TURBO + llama.cpp (this page) | Coder390 Q3 LynnStyle + NInfer (new route) |
+| metric | TWIN-TURBO + llama.cpp (fallback route) | Coder390 Q2 + NInfer (final route) |
 |---|---:|---:|
-| single-request decode | 74-78 tok/s | **84-86 tok/s** (+11~15%) |
-| single-request context | 160K | **262,144 full native window** |
-| 4-way concurrent aggregate | ~110-120 tok/s | **227.7 tok/s** |
-| prefill | ~1,675 tok/s | 1,395 tok/s |
-| full-load penalty (65K) | heavy | only −12~18% |
-| quality triad (official full suites) | none published | **GPQA 173 / MMLU 449 / LCB 92** |
-| anti-rambling | thinking −93% (in weights) | 94K truncations 13→3 (in weights) |
+| single-request decode | 74-78 tok/s | **80-83 tok/s** |
+| per-lane peak under load | 73 | **76 (6-way) / 95 (mc2 × d7)** |
+| aggregate (multi-way) | ~115 (np2) | **272.9 (6-way)** |
+| context | 160K | **262,144 full native window** |
 | deployment | ★ double-click | ★★★ WSL2 + Docker (official image) |
+| quality | no published triad | GPQA 87.4% / MMLU 449 / LCB 92 |
 
-- 📊 Full data & selection guide → [`data/ninfer-vs-turbo.md`](./data/ninfer-vs-turbo.md)
-- 🔧 NInfer deployment log (root-cause chain of three `finalizing target` crashes, measured KV cost per token, two launch profiles) → [`docs/ninfer-wsl2-deployment.md`](./docs/ninfer-wsl2-deployment.md)
-- ⚙️ Scripts → [`scripts/start-ninfer.sh`](./scripts/start-ninfer.sh) · [`scripts/bench-one.py`](./scripts/bench-one.py) · [`scripts/bench-par.py`](./scripts/bench-par.py)
+- 📊 full data → [`data/ninfer-vs-turbo.md`](./data/ninfer-vs-turbo.md)
+- 🔧 deployment log (root-cause chain of three `finalizing target` crashes, KV cost per token, pool probes) → [`docs/ninfer-wsl2-deployment.md`](./docs/ninfer-wsl2-deployment.md)
 
-One-line pick: **want zero-fuss + vision + double-click → llama.cpp; want the fastest, 262K context, real concurrency, and Docker is fine → NInfer.** Both can coexist (ports 8082/8083), switch any time.
+One-line pick: **want zero-fuss + vision + double-click → llama.cpp; want the fastest, 262K context, real concurrency, and Docker is fine → NInfer.** Both coexist (ports 8082/8083), switch any time.
 
 ---
 
@@ -95,7 +115,7 @@ Same family, two architecture routes: dense 27B vs 125B MoE (512 experts, ~6B ac
 
 ---
 
-## 🏆 Current Champion (copy-paste ready)
+## 🏆 Current Champions (two routes side by side)
 
 ### 🅝 Route N: Coder390 Q2 + NInfer (final since 2026-10-12 · daily default · LAN-capable)
 
@@ -112,7 +132,7 @@ docker run -d --gpus all -p 8083:8080 --ulimit memlock=-1 --name ninfer-coder390
 
 ### 🅣 Route T: TWIN-TURBO + llama.cpp (former single-card king · zero-Docker fallback)
 
-![current champion](assets/chart12-champion-stack.svg)
+![route T config](assets/chart12-champion-stack.svg)
 
 **One-line launch** (PowerShell; close the window to stop):
 
@@ -120,72 +140,52 @@ docker run -d --gpus all -p 8083:8080 --ulimit memlock=-1 --name ninfer-coder390
 & "D:\llama-upstream-b11223\llama-server.exe" -m "D:\models\esatapedico\Qwen3.8-27B-TWIN-TURBO-Fable-Cold-Fusion-709-L-Uncensored-NVFP4-MID-HIGH.gguf" --mmproj "D:\models\Qwen3.8-27B-quant-test\mmproj-Q8_0.gguf" -ngl 99 -fa on -fit off -c 163840 -np 1 --ctx-checkpoints 4 --load-mode none --jinja --cache-type-k q8_0 --cache-type-v q8_0 --spec-type draft-mtp --spec-draft-n-max 3 --reasoning-effort xhigh --temp 1.0 --top-p 0.95 --top-k 20 --min-p 0.0 --host 127.0.0.1 --port 8082
 ```
 
-### What this stack solves
+Route T spec sheet: **74-78 tok/s** decode (~1.8× from MTP) · 160K stable context · vision 3.9 s/image · thinking −93% (fixed in weights). Deep tuning record: [data/tturbo-adoption.md](data/tturbo-adoption.md) and the archive below.
 
-| problem | status |
-|---|---|
-| **Overthinking** | ✅ **fixed in model weights, −93%** (runaway prompt: 19,859 → 1,318 thinking chars; 31.7 s to a full 6,034-char answer). No runtime patches needed. |
-| **Precision** | ✅ **all-Q8_0 chain** (output heads + MTP heads + KV cache) — near-lossless, stable across long multi-turn sessions |
-| **Long tasks** | ✅ 12-min full-load, 100 rounds, **zero decay** (78.7 → 83.7 tok/s) |
-| **Vision** | ✅ ON, **3.9 s/image** (self-quantized q8_0 mmproj) |
-| **Speed** | ✅ **74–78 tok/s** decode (vision loaded), ~1.8× from MTP |
-| **The one trade-off: context** | ⚠️ **capped at 160K** — measured VRAM cliff at ~180K (192K = −25%). This is the maximum that runs *stably* on this card. |
-
-> ⚠️ **Deliberately NOT used**: `--reasoning-budget` and `--chat-template-file` — the model ships its own 10-mode system (einstein/spoon/xhigh…); old runtime patches conflict with it.
+> ⚠️ Route T deliberately skips `--reasoning-budget` / `--chat-template-file`: the model ships its own 10-mode system; old runtime patches conflict with it.
 >
-> 📦 **Three downloads**: [esatapedico / TWIN-TURBO-NVFP4-GGUF](https://huggingface.co/esatapedico/Qwen3.8-27B-TWIN-TURBO-Fable-Cold-Fusion-709-L-Uncensored-NVFP4-GGUF) → **MID-HIGH** tier (15.75 GB) · [mmproj](https://huggingface.co/Qwen/Qwen3.8-27B) (~0.9 GB, self-quantize to Q8_0 = 600 MB) · [llama.cpp b11223+ Windows CUDA](https://github.com/ggml-org/llama.cpp/releases) (main + cudart zips).
-
----
-
-## 📈 Two key charts
-
-**① MTP draft depth: 3 is the sweet spot** (re-validated on b11223)
-
-![mtp depth](assets/chart13-mtp-depth.svg)
-
-**② Context cliff: 160K is the max that runs stably**
-
-![context cliff](assets/chart14-ctx-cliff.svg)
-
-- Inside the non-spill zone, ctx size **does not affect speed** (152–176K all 74–77 tok/s)
-- **168–176K is a knife edge**: same command, different launches → bimodal 74.7 ↔ 55–59 (VRAM 98% full; spilling depends on fragmentation luck)
-- **184K+ consistently slower** (−12%), **192K+ −25%** (KV spills to system RAM)
-- KV cost measured at **43.97 KiB/token**; 160K KV ≈ 6.9 GiB; whole-card ledger 23.96/24.46 GiB
+> 📦 Three downloads: [TWIN-TURBO NVFP4 MID-HIGH](https://huggingface.co/esatapedico/Qwen3.8-27B-TWIN-TURBO-Fable-Cold-Fusion-709-L-Uncensored-NVFP4-GGUF) (15.75 GB) · [mmproj](https://huggingface.co/Qwen/Qwen3.8-27B) (self-quantize to Q8_0) · [llama.cpp b11223+ Windows CUDA](https://github.com/ggml-org/llama.cpp/releases).
 
 ---
 
 ## 🎯 10-second decision
 
 | scenario | pick |
-|---|---|
-| daily chat / coding / agents (vision) | **the one-liner above** ✅ |
-| ingesting 200K+ token documents | fallback: NVFP4-MTP-LOW + q4_0 KV + 262K ([data/context-scaling-history.md](data/context-scaling-history.md)) |
-| two clients at once | `-np 2`: stream A lossless, stream B −17%, **aggregate +50%**, each slot 80K ([data/2026-09-28-final-stack-tuning.md](data/2026-09-28-final-stack-tuning.md) §4) |
-| true 1M-token sessions | 32GB+ VRAM (vLLM route) |
-| can't stop thinking | **already fixed at model level** (−93%) |
+| --- | --- |
+| daily use / LAN multi-client | **double-click `启动本地大模型-内网8083.bat`** (NInfer Q2 mc6 × d3) ✅ |
+| batch / multi-agent parallel | NInfer **mc7 × d3** (aggregate 316.3, see Showdown 1) |
+| single-task, extreme context | NInfer mc1 @ 262K (no vision); 192K with vision |
+| two-way, each lane fast | mc2 × d2 (87/lane, 80.1% acceptance) |
+| zero-Docker, double-click | Route T: TWIN-TURBO one-liner (8082) |
+| ingest 260K tokens | Q2 262K native ✅ (Route T: q4_0 KV fallback, see archive) |
+| can't stop thinking | Coder390 / TWIN-TURBO — **both fixed at model level** |
 
 ---
 
 ## 🔁 Reproduce
 
 ```powershell
-# 1. engine: official llama.cpp Windows CUDA package (main + cudart zips into one folder), b11223+
-# 2. model: the three downloads above (hf-mirror.com for CN)
+# ── Route N (NInfer · default) ──
+# 1. WSL2 + Docker Desktop + ghcr.io/iamwavecut/ninfer-all image (see docs/ninfer-wsl2-deployment.md)
+# 2. model: nerkyor Q2LynnStyle-Q4MTP.ninfer (ModelScope / hf-mirror)
 # 3. launch
-.\scripts\start-twin-turbo-daily.ps1
+double-click start-ninfer-lan.bat        # or scripts/start-ninfer-lan.bat
 # 4. verify
-curl http://127.0.0.1:8082/health     # {"status":"ok"}
+curl http://127.0.0.1:8083/health        # {"status":"ok"}
+
+# ── Route T (llama.cpp · fallback) ──
+.\scripts\start-twin-turbo-daily.ps1     # verify curl http://127.0.0.1:8082/health
 ```
 
-**Acceptance baseline**: 384-token generation at **74–78 tok/s** (server-timed; ±10% from MTP acceptance randomness).
+**Acceptance baselines**: Route N single 80-83 tok/s, 6-way aggregate 272.9; Route T 74-78 tok/s (server-timed; ±10% from MTP acceptance randomness).
 
 **Measurement discipline** (how every number here was produced):
-1. Read **server-side timings** only — never client-side deltas
-2. A single reading is noise (50.6–79.4 seen for identical configs) → conclusions require **re-test consistency**
-3. Sweeps must **re-run endpoints in reverse order** (thermal drift faked a "96K fastest" curve once)
-4. Beware **knife-edge configs**: bimodal results across launches = unusable
+1. Read **server-side timings** only (`timings` / `/stats`) — never client-side deltas
+2. A single reading is noise → conclusions require **re-test consistency**; aggregate calls need two batches
+3. Cross-session comparisons are unreliable (±10-31% thermal/clock variance) → trust within-session rankings only
+4. "free 0 B" is conservative → **real boundaries must be probe-tested**
 
-**Tooling**: [`scripts/bench-parallel.py`](scripts/bench-parallel.py) · [`scripts/bench-mtp-sweep.ps1`](scripts/bench-mtp-sweep.ps1) · [`scripts/bench-ctx-fine.ps1`](scripts/bench-ctx-fine.ps1) · [`scripts/start-tt-bench.ps1`](scripts/start-tt-bench.ps1)
+**Tooling**: [`scripts/bench-one.py`](scripts/bench-one.py) · [`scripts/bench-par.py`](scripts/bench-par.py) (concurrency + MTP acceptance) · [`scripts/matrix-round9.sh`](scripts/matrix-round9.sh) (48-cell auto-matrix) · [`scripts/start-ninfer-lan.bat`](scripts/start-ninfer-lan.bat) (NInfer launcher) · Route T: [`scripts/bench-parallel.py`](scripts/bench-parallel.py) · [`scripts/start-tt-bench.ps1`](scripts/start-tt-bench.ps1)
 
 ---
 
@@ -202,8 +202,8 @@ Speed dual-winner of the 3-way quant duel (79.6 tok/s / 200K) but lower head pre
 </details>
 
 <details>
-<summary><b>❌ 192K+ context — VRAM spill, −25%</b></summary>
-184K −12%, 192K −25%, 224K same. 168–176K is bimodal. (Under the smaller NVFP4-LOW weights, 192K used to work — the 15.75 GB TWIN-TURBO weights move the cliff.)
+<summary><b>❌ 192K+ context (Route T) — VRAM spill, −25%</b></summary>
+184K −12%, 192K −25%, 224K same. 168–176K is bimodal. (Under the smaller NVFP4-LOW weights, 192K used to work — the 15.75 GB TWIN-TURBO weights move the cliff.) **NInfer + Q2 has broken this limit: 262K full window, no cliff (rk4v4 KV 19KB/token vs q8_0 26KB).**
 </details>
 
 <details>
@@ -216,7 +216,12 @@ TWIN-TURBO trains overthinking away (−93%); stacking budget+template patches m
 Funnel: <a href="#-10-round-log">round log below</a> · iMatrix hybrid (−27% speed): [data/round2-new-results.md](data/round2-new-results.md) · YaRN 1M (4–5 tok/s) and the 262K hard cap: [docs/context-limits-and-yarn.md](docs/context-limits-and-yarn.md)
 </details>
 
-## 📜 10-round log
+<details>
+<summary><b>❌ KV format rk8v4 (NInfer route) — 25% slower, MTP acceptance halved</b></summary>
+Four KV formats measured (Q2 @ 262K): rk4v4 19KB/tok → **84-86 tok/s, acceptance 67-74%**; fp8 32.6KB → 80.7; rk8v4 28.6KB → 63.6 with acceptance halved to 44%; bf16 52.7KB caps the pool at ~64-96K. Verdict: **FP4 (rk4v4) is faster, cheaper and stable**; needle recall passes on all three. Details: [data/q2-262k-tuning-log.md](data/q2-262k-tuning-log.md) §4.
+</details>
+
+## 📜 Tuning log
 
 | round | theme | takeaway |
 |---|---|---|
@@ -228,52 +233,86 @@ Funnel: <a href="#-10-round-log">round log below</a> · iMatrix hybrid (−27% s
 | 6 | exhaustive re-check | 40+ params swept |
 | 7 | context truth | q4_0 KV unlocks 256K · silent cap & YaRN reality |
 | 8 | model switch | **TWIN-TURBO MID-HIGH promoted**: −93% thinking, all-Q8_0, patches retired |
-| 9 | engine refresh (09-28) | **official b11146/b11223 CUDA 13.4**: CUDA graphs for MTP draft — same peak, **higher floor** |
-| 10 | final tuning (09-28) | MTP depth re-validated · **DFlash2 rejected** (4% acceptance) · dual-slot +50% · **context cliff mapped**: 160K final |
+| 9 | engine refresh (09-28) | official b11146/b11223 CUDA 13.4: CUDA graphs for MTP draft — same peak, **higher floor** |
+| 10 | final tuning (09-28) | MTP depth re-validated · DFlash2 rejected · dual-slot +50% · context cliff mapped: 160K final |
+| 11 | engine switch (10-11) | **NInfer-all joins** (WSL2 + Docker): 262K full window, mc1-7 lanes, resident vision, `finalizing` failure chain fully mapped |
+| 12 | concurrency final (10-12) | **Coder390 Q2 promoted**: 3.8 GB lighter buys 6 lanes · 48+21-cell matrices · KV duel (rk4v4 wins) · pool ceiling 288K · acceptance rules proven |
 
 ---
 
 ## ❓ FAQ
 
-**Q: Why not 256K (the model's native max)?**
-A: The 24GB card cannot hold 256K KV at speed — 192K already spills (−25%). 160K is the max stable value. For 260K-token ingest, use the fallback config (NVFP4-MTP-LOW + q4_0 KV).
+**Q: Is the 262K context input or output?**
+A: **Shared.** A request's hard cap = max-context covering prompt + generated tokens. Output is flexible, bounded by EOS / the `max_tokens` parameter / the remaining window.
 
-**Q: Does q8_0 KV lose quality?**
-A: Near-lossless; long-recall tests (12K/70% and 150K/80% depth) all pass.
+**Q: How much quality does Q2 lose at BPW 3.89?**
+A: Official triads: GPQA 177 (parity with FP8) / MMLU 433 (−16, breadth) / LCB 90 (parity). 65K-deep needle recall is verbatim. For knowledge breadth use Q3 (but only 1-2 lanes at 262K).
+
+**Q: Why is mc7 the concurrency ceiling?**
+A: Each lane costs 0.5-1 GB of workspace (buffers + draft KV + state); mc8 with vision always exceeds VRAM; mc9 is an engine hard limit (1..8).
+
+**Q: Why doesn't Route T open 256K directly?**
+A: llama.cpp + q8_0 KV (26KB/token) spills at 192K (−25%); 160K is its stable value. NInfer + rk4v4 (19KB/token) + Q2 weights have broken that limit: 262K full window, no cliff.
+
+**Q: Does quantized KV lose quality?**
+A: Near-lossless across the board. Recall tests pass on both routes (Route T 12K/150K depth; Route N 65K needle verbatim).
 
 **Q: Why not vLLM / SGLang?**
-A: On Blackwell laptops their VRAM management and GGUF ecosystem are less flexible; NVFP4 weights ship as GGUF. SGLang/vLLM is the home of "official model + server stack" combos like DFlash2.
+A: No native Windows support (would nest inside WSL2), and NInfer's shared-pool concurrency measured higher (6-way 272.9 tok/s). llama.cpp remains the zero-Docker control route.
 
 **Q: How much faster on a desktop 5090?**
 A: prefill 2–3×, decode 1.5–2× (575W vs 145W). Capacity conclusions transfer as a method — re-measure for your weights' size.
 
 **Q: 16GB card?**
-A: smaller tier + q8_0 KV + ~96K ctx; or IQ3_S (11.3 GB) for capacity.
+A: Route T: smaller tier + q8_0 KV + ~96K ctx. NInfer route: needs an even smaller quant tier — concurrency only makes sense on bigger cards.
 
 **Q: Multiple instances?**
-A: Two 27B instances don't fit. Use in-instance `-np 2` (aggregate +50%).
+A: Two 27B instances don't fit. NInfer's in-container mc6-7 concurrency is the answer (272-285 tok/s); Route T uses `-np 2`.
 
 **Q: Image input?**
-A: Native VLM. `--mmproj` (self-quantized Q8_0 = 600 MB), ~1GB extra VRAM — part of the ctx cliff math.
+A: Both routes are native VLMs. Route N: vision inside the Q2 package (`--vision`, OCR-grade tested); Route T: `--mmproj` (self-quantized Q8_0 = 600 MB). Vision VRAM counts against the concurrency ceiling on both.
 
 ---
 
 ## 🔧 Troubleshooting
 
+### NInfer route
+
+| symptom | cause & fix |
+|---|---|
+| `startup failed \| finalizing target` (ms-scale) | KV pool + workspace exceed VRAM. **Set `--kv-capacity` explicitly** (`auto` is unreliable), lower lanes or pool; the default KV is bf16 (52.7KB/token) — always fatal at 262K |
+| mc8 / high lanes won't start | 0.5-1 GB workspace per lane. Lower lanes or pool ([data/q2-262k-tuning-log.md](data/q2-262k-tuning-log.md) §6) |
+| mc9 exits instantly | engine hard limit `--max-concurrency 1..8` |
+| Docker engine stuck "verifying" | Desktop's auth enforcer times out against hub.docker.com (~30s+), then releases. Cold-start only; permanent fix = docker-ce inside WSL2 |
+| mc7 × d8/d9 won't start | **long drafts also consume workspace** — drop draft length first at high lanes |
+| slow first start (51s route calibration) | device profile lives in the /cache volume; deleting it re-calibrates |
+
+### Route T (llama.cpp)
+
 | symptom | cause & fix |
 |---|---|
 | exits at start, empty log | arg incompatibility. `--no-mmap` was removed; use `--load-mode none` |
 | `failed to allocate buffer for kv cache` | ctx beyond VRAM. lower `-c` |
-| starts but stutters | VRAM on the edge (<200 MiB free). drop 8–16K ctx |
 | same config, 20%+ speed swings | knife-edge VRAM saturation. drop to a ctx tier with headroom |
-| all thinking, no answer | missing `reasoning_effort`; default xhigh burns the budget |
 | garbled output | request body not UTF-8 (write JSON file + `curl --data-binary @file`) |
 
 ---
 
-## 📚 Full data & docs index (archive)
+## 📚 Full data & docs index
 
-### history (`data/`)
+### current routes (2026-10-11 ~ 10-12)
+
+| file | content |
+|---|---|
+| [data/ninfer-vs-turbo.md](data/ninfer-vs-turbo.md) | **Showdown 2 table**: the two routes head-to-head (final update) |
+| [data/q2-262k-tuning-log.md](data/q2-262k-tuning-log.md) | **Showdown 1 log**: Q2 @ 262K tuning (R5-R11, ladders / 48-cell matrix / KV duel / pool probes) |
+| [data/dense-vs-flashnext.md](data/dense-vs-flashnext.md) | **Showdown 3**: 27B Dense vs Flash-Next 125B MoE |
+| [data/matrix-mc2-7-d2-9-mtp.csv](data/matrix-mc2-7-d2-9-mtp.csv) · [data/matrix-mc2-9-d2-9.csv](data/matrix-mc2-9-d2-9.csv) | raw 48 / 64-cell matrix data |
+| [docs/ninfer-wsl2-deployment.md](docs/ninfer-wsl2-deployment.md) | NInfer WSL2 + Docker deployment log |
+| [scripts/start-ninfer-lan.bat](scripts/start-ninfer-lan.bat) | **double-click launcher** (LAN 8083) |
+| [scripts/matrix-round9.sh](scripts/matrix-round9.sh) · [scripts/bench-par.py](scripts/bench-par.py) · [scripts/bench-one.py](scripts/bench-one.py) | matrix / concurrency / single-shot bench scripts (server-timed) |
+
+### history (Route T llama.cpp era, `data/`)
 
 | file | content |
 |---|---|
@@ -287,9 +326,9 @@ A: Native VLM. `--mmproj` (self-quantized Q8_0 = 600 MB), ~1GB extra VRAM — pa
 
 ### docs (`docs/`)
 
-[context-limits-and-yarn.md](docs/context-limits-and-yarn.md) · [windows-self-build-recipe.md](docs/windows-self-build-recipe.md) · [custom-build-and-mtp-bug.md](docs/custom-build-and-mtp-bug.md) · [reasoning-guide.md](docs/reasoning-guide.md) · [xhigh-overthinking-fix.md](docs/xhigh-overthinking-fix.md) · [vision-setup.md](docs/vision-setup.md) · [ACKNOWLEDGMENTS.md](docs/ACKNOWLEDGMENTS.md)
+[ninfer-wsl2-deployment.md](docs/ninfer-wsl2-deployment.md) · [context-limits-and-yarn.md](docs/context-limits-and-yarn.md) · [windows-self-build-recipe.md](docs/windows-self-build-recipe.md) · [custom-build-and-mtp-bug.md](docs/custom-build-and-mtp-bug.md) · [reasoning-guide.md](docs/reasoning-guide.md) · [xhigh-overthinking-fix.md](docs/xhigh-overthinking-fix.md) · [vision-setup.md](docs/vision-setup.md) · [ACKNOWLEDGMENTS.md](docs/ACKNOWLEDGMENTS.md)
 
-Historical charts live in [assets/](./assets) (chart1–chart11), generated by [tools/](./tools).
+Historical charts live in [assets/](./assets) (chart1–chart14), generated by [tools/](./tools).
 
 ---
 
@@ -300,8 +339,8 @@ Historical charts live in [assets/](./assets) (chart1–chart11), generated by [
 | code (`scripts/`, `tools/`) | **MIT** |
 | docs & data (README, `docs/`, `data/`, charts) | **CC BY 4.0** |
 
-Third-party: Qwen3.8-27B weights **Apache 2.0** ([Qwen](https://huggingface.co/Qwen/Qwen3.8-27B)) · TWIN-TURBO GGUF per its model card ([esatapedico](https://huggingface.co/esatapedico)) · llama.cpp **MIT** · CUDA under NVIDIA EULA. **No model weights are included in this repo.** Full terms: [LICENSE](LICENSE), [docs/ACKNOWLEDGMENTS.md](docs/ACKNOWLEDGMENTS.md).
+Third-party: Qwen3.8-27B weights **Apache 2.0** ([Qwen](https://huggingface.co/Qwen/Qwen3.8-27B)) · Coder390 post-training **Apache 2.0** ([nerkyor](https://huggingface.co/nerkyor)) · TWIN-TURBO GGUF per its model card ([esatapedico](https://huggingface.co/esatapedico)) · NInfer-all per its repo ([iamwavecut](https://github.com/iamwavecut/ninfer-all)) · llama.cpp **MIT** · CUDA under NVIDIA EULA. **No model weights are included in this repo.** Full terms: [LICENSE](LICENSE), [docs/ACKNOWLEDGMENTS.md](docs/ACKNOWLEDGMENTS.md).
 
 ## Acknowledgments
 
-**Alibaba / Qwen team** (base model) · **DavidAU** (TWIN-TURBO thinking fix) · **esatapedico** (NVFP4 GGUF family) · **unsloth / DASLab** (quant methods) · **llama.cpp community** (engine, MTP, CUDA graphs) · **z-lab / NVIDIA** (DFlash2 — rejected here, respected everywhere)
+**Alibaba / Qwen team** (base model, Flash-Next) · **nerkyor** (Coder390 post-training) · **NInfer-all community** (the engine) · **llama.cpp community** (Route T) · **esatapedico** (TWIN-TURBO NVFP4) · **ISTA-DASLab** (quant methods) · every public measurer who blazed the 5090 laptop trail.

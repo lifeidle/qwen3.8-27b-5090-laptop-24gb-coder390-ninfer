@@ -3,6 +3,21 @@
 > 同一块 RTX 5090 Laptop 24GB，两代主力方案，全部数字为服务端计时口径（无客户端秒表）。
 > 原始部署步骤与全部踩坑见 [docs/ninfer-wsl2-deployment.md](../docs/ninfer-wsl2-deployment.md)。
 
+## ⭐ 2026-10-12 定版更新（本文数字以此为准）
+
+NInfer 路线完成三轮全矩阵调优（65 格，含 21 格复测）后**定版升级**：模型从 Q3 换成 **Q2 LynnStyle**（12.6 GiB，省 3.8GB 换并发），配置定为 **mc6 × d3，262K 原生窗口 + 294,912 池 + 视觉**。
+
+| | TWIN-TURBO + llama.cpp | **Coder390 Q2 + NInfer（定版）** |
+|---|---:|---:|
+| 聚合吞吐（6 路） | ~115（np2） | **272.9 稳定 / 316.3 峰值** |
+| 单发 decode | 74-78 | 80-83 |
+| 并发单路峰值 | 73 | **76（6 路）/ 95（mc2 × d7）** |
+| 上下文 | 160K | **262K 原生满窗 + 32K 排队余量** |
+| 视觉 | ✅ | ✅ |
+| MTP 接受率 | ~53% | 59-64%（d3）/ 80%（d2） |
+
+完整调优记录（并发爬梯、48 格三指标矩阵、KV 格式对决、池天花板探针、三轮复现性验证）→ [`q2-262k-tuning-log.md`](./q2-262k-tuning-log.md)。下文为 10-11 首轮对比（Q3 时代数字，仍有效）。
+
 **TL;DR (EN)**: New route (Coder390 Q3 LynnStyle `.ninfer` + NInfer-all engine in WSL2/Docker) beats the previous champion (TWIN-TURBO NVFP4 + native-Windows llama.cpp) on speed (+11-15%), context (262K vs 160K) and concurrency (C4 aggregate 228 vs ~115 tok/s), at the cost of a heavier deployment (Docker/WSL2 vs a single exe). Full numbers below.
 
 ## 一、两个方案是什么

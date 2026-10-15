@@ -12,7 +12,7 @@
 
 | # | 对决 | 最终答案 |
 |---|---|---|
-| **一** | **并发取舍**（10-12 定版）：单路满速 vs 多路吞吐，Q2 @ 262K 满窗 + 视觉 | **mc3 × d3 + 360K 池**：短文并发 192.2-194.8、稳态解码 126.5、单发 92.7-100.4 |
+| **一** | **并发取舍**（10-12 定版）：单路满速 vs 多路吞吐，Q2 @ 262K 满窗 + 视觉 | **mc3 × d3 + 388K 池**：短文并发 192.2-194.8、稳态解码 126.5、单发 92.7-100.4 |
 | **二** | **部署路线**：llama.cpp 原生 vs NInfer（WSL2 + Docker） | 两条都可跑；NInfer 快 10-25%、llama.cpp 免 Docker |
 | **三** | **模型架构**：27B Dense vs Flash-Next 125B MoE | 24GB 单卡 → **27B Dense 唯一正解**；Flash-Next 需双卡起步 |
 
@@ -25,7 +25,7 @@
 ### 定版配置与成绩
 
 ```bash
---max-context 262144 --kv-capacity 360000 --kv-dtype rk4v4 \
+--max-context 262144 --kv-capacity 388032 --kv-dtype rk4v4 \
 --max-concurrency 3 --spec mtp --draft-tokens 3 --vision
 ```
 
@@ -34,7 +34,7 @@
 | 聚合吞吐（3 路短文并发，两批） | **192.2 / 194.8 tok/s**（稳态解码 126.5） |
 | 单发 decode | 80-83 tok/s |
 | 并发时单路 | 59-76 tok/s |
-| 上下文 | 262,144 原生满窗（池 360,000 = mc3 探针天花板，排队余量 ~98K） |
+| 上下文 | 262,144 原生满窗（池 388,032 = mc3 探针天花板 388K，排队余量 ~126K） |
 | MTP 接受率 | 48.7-61.0%（d3）；d2 档 53-65% |
 | 视觉 | ✅ OCR 级图片理解 |
 
@@ -111,10 +111,10 @@
 桌面双击 **`启动本地大模型-内网8083.bat`**：自动拉起 Docker → 起容器 → 健康检查 → 打印内网地址（首次内网访问需在防火墙放行 8083）。等价命令：
 
 ```powershell
-docker run -d --gpus all -p 8083:8080 --ulimit memlock=-1 --name ninfer-coder390 -v "D:\models\ninfer:/models" -v ninfer-cache:/cache ghcr.io/iamwavecut/ninfer-all:latest serve /models/Qwen3.8-27B-Coder390-EfficientThink-Q2LynnStyle-Q4MTP.ninfer --model-id qwen3.8-27b-coder390-q2-q4mtp --max-context 262144 --kv-capacity 360000 --kv-dtype rk4v4 --max-concurrency 3 --spec mtp --draft-tokens 3 --vision
+docker run -d --gpus all -p 8083:8080 --ulimit memlock=-1 --name ninfer-coder390 -v "D:\models\ninfer:/models" -v ninfer-cache:/cache ghcr.io/iamwavecut/ninfer-all:latest serve /models/Qwen3.8-27B-Coder390-EfficientThink-Q2LynnStyle-Q4MTP.ninfer --model-id qwen3.8-27b-coder390-q2-q4mtp --max-context 262144 --kv-capacity 388032 --kv-dtype rk4v4 --max-concurrency 3 --spec mtp --draft-tokens 3 --vision
 ```
 
-| **3 路并发 × 262K 满窗 + 360K 池** | 聚合 **272.9**（峰值 316.3） | 单路 59-76 | 视觉 OCR 级 | 内网 `:8083` |
+| **3 路并发 × 262K 满窗 + 388K 池** | 聚合 **272.9**（峰值 316.3） | 单路 59-76 | 视觉 OCR 级 | 内网 `:8083` |
 |---|---|---|---|---|
 
 > 端点：`http://<本机IP>:8083/v1/chat/completions` · model 名 `qwen3.8-27b-coder390-q2-q4mtp` · 停止：`docker rm -f ninfer-coder390`

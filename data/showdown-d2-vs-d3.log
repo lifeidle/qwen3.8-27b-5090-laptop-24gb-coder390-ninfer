@@ -1,0 +1,18 @@
+=== showdown start Thu Oct 15 09:27:10     2026 ===
+===== mc3 d2 pool=388032 =====
+ITEM short_single | decode=90.8 ttft=331ms mtp=67.0%
+ITEM short_par_b1 | aggregate=185.5 perlane=66 66 64 mtp=71.2% n=3
+ITEM short_par_b2 | aggregate=178.3 perlane=68 65 61 mtp=71.6% n=3
+ITEM long_single | prefill=1730 tok/s (25511 tok, ttft=14743ms) decode=78.8 recall=1/1
+ITEM long_par | wall=49.7s aggregate=8.9 perlane_decode=80 38 36 perlane_prefill=1727 1577 1513 mtp=61.2% recall=3/3
+ITEM long_gen2000 | wall=14.8s steady_aggregate=104.3 perlane_decode=73 58 45 out=1547 mtp=52.7% recall=3/3
+C3 parallel=3 | aggregate=167.8 tok/s (out 1152 tok / wall 6.9s) | per-req decode: 65 59 59 | MTP=68.9% (664/964) | max_tokens_cap=384
+===== mc3 d3 pool=388032 =====
+ITEM short_single | decode=94.0 ttft=777ms mtp=58.1%
+ITEM short_par_b1 | aggregate=182.1 perlane=70 66 64 mtp=55.7% n=3
+ITEM short_par_b2 | aggregate=207.9 perlane=82 73 71 mtp=67.5% n=3
+ITEM long_single | prefill=1722 tok/s (25511 tok, ttft=14811ms) decode=95.7 recall=1/1
+ITEM long_par | wall=52.9s aggregate=14.8 perlane_decode=103 44 38 perlane_prefill=1721 1594 1407 mtp=50.6% recall=2/3
+ITEM long_gen2000 | wall=6.9s steady_aggregate=126.8 perlane_decode=68 61 54 out=881 mtp=52.1% recall=3/3
+C3 parallel=3 | aggregate=189.7 tok/s (out 1152 tok / wall 6.1s) | per-req decode: 72 69 67 | MTP=63.1% (751/1191) | max_tokens_cap=384
+SHOWDOWN_DONE

@@ -2,7 +2,7 @@
 title Qwen3.8 Coder390 Q2 - NInfer Server (LAN port 8083)
 REM ============================================================
 REM  Double-click launcher: Qwen3.8-27B Coder390 Q2 LynnStyle
-REM  6-way concurrency, 262K context window, 294912 token KV pool,
+REM  3-way concurrency, 262K context window, 294912 token KV pool,
 REM  vision ON, MTP d3, rk4v4 KV.
 REM  Local  : http://127.0.0.1:8083/v1/chat/completions
 REM  LAN    : http://<this-PC-IPv4>:8083/v1/chat/completions
@@ -32,9 +32,9 @@ exit /b 1
 :engine_ok
 echo       Engine OK.
 
-echo [2/3] Starting model container (Q2, 262K ctx, pool 294912, 6-way, vision)...
+echo [2/3] Starting model container (Q2, 262K ctx, pool 360000, 3-way, vision)...
 "%DOCKEREXE%" rm -f ninfer-coder390 >nul 2>&1
-"%DOCKEREXE%" run -d --gpus all -p 8083:8080 --ulimit memlock=-1 --name ninfer-coder390 -v "D:\models\ninfer:/models" -v ninfer-cache:/cache ghcr.io/iamwavecut/ninfer-all:latest serve /models/Qwen3.8-27B-Coder390-EfficientThink-Q2LynnStyle-Q4MTP.ninfer --model-id qwen3.8-27b-coder390-q2-q4mtp --max-context 262144 --kv-capacity 294912 --kv-dtype rk4v4 --max-concurrency 6 --spec mtp --draft-tokens 3 --vision
+"%DOCKEREXE%" run -d --gpus all -p 8083:8080 --ulimit memlock=-1 --name ninfer-coder390 -v "D:\models\ninfer:/models" -v ninfer-cache:/cache ghcr.io/iamwavecut/ninfer-all:latest serve /models/Qwen3.8-27B-Coder390-EfficientThink-Q2LynnStyle-Q4MTP.ninfer --model-id qwen3.8-27b-coder390-q2-q4mtp --max-context 262144 --kv-capacity 360000 --kv-dtype rk4v4 --max-concurrency 3 --spec mtp --draft-tokens 3 --vision
 
 echo [3/3] Waiting for model load (about 60-90 s after warm, 3 min cold)...
 :wait_ready

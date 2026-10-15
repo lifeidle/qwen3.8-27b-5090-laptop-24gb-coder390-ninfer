@@ -1,0 +1,30 @@
+=== suite start Thu Oct 15 08:53:40     2026 ===
+===== mc2 d2 pool=420000 =====
+ITEM short_single | decode=91.5 ttft=110ms mtp=72.4%
+ITEM short_par_b1 | aggregate=144.8 perlane=79 73 mtp=68.1% n=2
+ITEM short_par_b2 | aggregate=152.6 perlane=81 77 mtp=73.1% n=2
+ITEM long_single | prefill=1735 tok/s (25511 tok, ttft=14704ms) decode=83.4 recall=1/1
+ITEM long_par | wall=36.6s aggregate=16.2 perlane_decode=85 37 perlane_prefill=1725 1461 mtp=59.8% recall=2/2
+ITEM long_gen2000 | wall=2.8s steady_aggregate=124.7 perlane_decode=69 64 out=355 mtp=63.3% recall=2/2
+===== mc2 d3 pool=420000 =====
+ITEM short_single | decode=109.4 ttft=896ms mtp=73.7%
+ITEM short_par_b1 | aggregate=146.4 perlane=76 75 mtp=62.0% n=2
+ITEM short_par_b2 | aggregate=147.4 perlane=83 80 mtp=67.0% n=2
+ITEM long_single | prefill=1722 tok/s (25511 tok, ttft=14811ms) decode=90.5 recall=1/1
+ITEM long_par | wall=35.1s aggregate=15.6 perlane_decode=99 44 perlane_prefill=1720 1382 mtp=62.7% recall=2/2
+ITEM long_gen2000 | wall=3.8s steady_aggregate=123.0 perlane_decode=75 64 out=471 mtp=55.3% recall=2/2
+===== mc3 d2 pool=360000 =====
+ITEM short_single | decode=95.7 ttft=118ms mtp=77.9%
+ITEM short_par_b1 | aggregate=164.4 perlane=59 57 55 mtp=58.2% n=3
+ITEM short_par_b2 | aggregate=160.5 perlane=67 66 55 mtp=64.6% n=3
+ITEM long_single | prefill=1720 tok/s (25511 tok, ttft=14834ms) decode=87.5 recall=1/1
+ITEM long_par | wall=53.5s aggregate=13.5 perlane_decode=81 36 31 perlane_prefill=1718 1526 1432 mtp=53.4% recall=3/3
+ITEM long_gen2000 | wall=5.1s steady_aggregate=134.2 perlane_decode=64 60 49 out=682 mtp=60.9% recall=3/3
+===== mc3 d3 pool=360000 =====
+ITEM short_single | decode=92.7 ttft=803ms mtp=56.8%
+ITEM short_par_b1 | aggregate=192.2 perlane=73 70 69 mtp=60.1% n=3
+ITEM short_par_b2 | aggregate=194.8 perlane=74 69 68 mtp=61.0% n=3
+ITEM long_single | prefill=1720 tok/s (25511 tok, ttft=14836ms) decode=100.4 recall=1/1
+ITEM long_par | wall=50.6s aggregate=11.0 perlane_decode=94 46 46 perlane_prefill=1720 1568 1524 mtp=54.1% recall=3/3
+ITEM long_gen2000 | wall=7.5s steady_aggregate=126.5 perlane_decode=63 62 48 out=947 mtp=48.7% recall=3/3
+SUITE_DONE

@@ -1,10 +1,10 @@
 # Qwen3.8 · RTX 5090 Laptop 24GB Limit Log
 
-**The complete showdown record for the Qwen3.8 family on this 24GB laptop card — 27B Dense with dual engine routes, 6-way concurrency × 262K full window, 316.3 tok/s aggregate peak, every number server-side timed**
+**The complete showdown record for the Qwen3.8 family on this 24GB laptop card — 27B Dense with dual engine routes, 3-way concurrency × 262K full window, 192-195 tok/s short-par, every number server-side timed**
 
 [中文版 →](./README.md) ｜ [Scripts →](./scripts) ｜ [Raw data →](./data)
 
-![Model](https://img.shields.io/badge/model-Coder390%20Q2%20LynnStyle-7c3aed) ![Platform](https://img.shields.io/badge/platform-RTX%205090%20Laptop%2024GB-76b900) ![Aggregate](https://img.shields.io/badge/aggregate-272.9%20~20316.3%20peak-d97706) ![Context](https://img.shields.io/badge/context-262K%20×%206 lanes-2563eb) ![Vision](https://img.shields.io/badge/vision-OCR%20grade%20resident-059669) ![Engine](https://img.shields.io/badge/NInfer--all%200.12-WSL2%20%2B%20Docker-0ea5e9) ![Alt](https://img.shields.io/badge/fallback-llama.cpp%20b11223%20%2B%20TWIN--TURBO-6b7280) ![License](https://img.shields.io/badge/license-MIT%20%2B%20CC%20BY%204.0-059669)
+![Model](https://img.shields.io/badge/model-Coder390%20Q2%20LynnStyle-7c3aed) ![Platform](https://img.shields.io/badge/platform-RTX%205090%20Laptop%2024GB-76b900) ![Aggregate](https://img.shields.io/badge/aggregate-192.2~194.8%20short-par-d97706) ![Context](https://img.shields.io/badge/context-262K%20×%203 lanes-2563eb) ![Vision](https://img.shields.io/badge/vision-OCR%20grade%20resident-059669) ![Engine](https://img.shields.io/badge/NInfer--all%200.12-WSL2%20%2B%20Docker-0ea5e9) ![Alt](https://img.shields.io/badge/fallback-llama.cpp%20b11223%20%2B%20TWIN--TURBO-6b7280) ![License](https://img.shields.io/badge/license-MIT%20%2B%20CC%20BY%204.0-059669)
 
 ---
 
@@ -12,7 +12,7 @@
 
 | # | Showdown | Final answer |
 |---|---|---|
-| **1** | **Concurrency trade-off** (final, 10-12): single-lane speed vs multi-way throughput, Q2 @ 262K full window + vision | **mc6 × d3**: aggregate 272.9 (peak 316.3), 76/lane, native 262K window + 288K pool |
+| **1** | **Concurrency trade-off** (final, 10-12): single-lane speed vs multi-way throughput, Q2 @ 262K full window + vision | **mc3 × d3 + 360K pool**: short-par 192.2-194.8, steady decode 126.5, single 92.7-100.4 |
 | **2** | **Deployment route**: native llama.cpp vs NInfer (WSL2 + Docker) | Both work; NInfer +10-25% faster, llama.cpp zero-Docker |
 | **3** | **Model architecture**: 27B Dense vs Flash-Next 125B MoE | On 24GB single card → **27B Dense is the only way**; Flash-Next needs 2 GPUs |
 
@@ -26,11 +26,11 @@
 
 | metric | value |
 |---|---:|
-| Aggregate (6 lanes) | **272.9 tok/s** stable / **316.3 peak** (all-time high) |
+| Aggregate (3-way short-par, two batches) | **192.2 / 194.8 tok/s** (steady decode 126.5) |
 | Single-request decode | 80-83 tok/s |
 | Per-lane under load | 59-76 tok/s |
-| Context | 262,144 native window (pool 294,912 = +32K queue headroom; measured ceiling 288K) |
-| MTP acceptance | 59-64% (d3); 80% at d2 |
+| Context | 262,144 native window (pool 360,000 = mc3 probe ceiling, ~98K queue headroom) |
+| MTP acceptance | 48.7-61.0% (d3); 53-65% at d2 |
 | Vision | ✅ OCR-grade |
 
 ### How to pick the lane count (three sessions, ±5-9% variance)
@@ -40,7 +40,7 @@
 | mc1 | 83.4 (single) | 83.4 | extreme single task (262K without vision) |
 | mc2 | 137.9 | **87** | two-way, near full speed |
 | mc4 | 215.3 | 77 | balanced |
-| **mc6 ★** | **272.9** | 76 | **final: the balance point** |
+| **mc3 ★** | **192.2 / 194.8** (two batches) | 68-74 (steady 46-63) | **final: 3-lane multi-task balance** |
 | mc7 | 316.3 | 59 | batch limit (8-way + vision all fail) |
 
 **Three hard rules** (48 + 21 cells, three sessions): ① MTP acceptance falls monotonically with draft length (80% at d2 → 28-37% at d9) — **d5+ is a liability on Q2**; ② each extra lane ≈ +0.5-1 GB workspace — mc7 is the ceiling at 262K+vision; ③ the pool can be oversized to 288K (probe-verified), but a single request stays capped at the native 262,144 window.
@@ -66,8 +66,8 @@ Same 24GB card, two generations of the daily driver, all numbers from server-sid
 | metric | TWIN-TURBO + llama.cpp (fallback route) | Coder390 Q2 + NInfer (final route) |
 |---|---:|---:|
 | single-request decode | 74-78 tok/s | **80-83 tok/s** |
-| per-lane peak under load | 73 | **76 (6-way) / 95 (mc2 × d7)** |
-| aggregate (multi-way) | ~115 (np2) | **272.9 (6-way)** |
+| per-lane peak under load | 73 | **76-100 (long-ctx first lane) / 95 (mc2 × d7)** |
+| aggregate (multi-way) | ~115 (np2) | **192-195 (3-way short-par)** |
 | context | 160K | **262,144 full native window** |
 | deployment | ★ double-click | ★★★ WSL2 + Docker (official image) |
 | quality | no published triad | GPQA 87.4% / MMLU 449 / LCB 92 |
@@ -106,10 +106,10 @@ Same family, two architecture routes: dense 27B vs 125B MoE (512 experts, ~6B ac
 Double-click **`scripts/start-ninfer-lan.bat`** (auto-starts Docker → launches the container → health check → prints LAN URLs). Equivalent command:
 
 ```powershell
-docker run -d --gpus all -p 8083:8080 --ulimit memlock=-1 --name ninfer-coder390 -v "D:\models\ninfer:/models" -v ninfer-cache:/cache ghcr.io/iamwavecut/ninfer-all:latest serve /models/Qwen3.8-27B-Coder390-EfficientThink-Q2LynnStyle-Q4MTP.ninfer --model-id qwen3.8-27b-coder390-q2-q4mtp --max-context 262144 --kv-capacity 294912 --kv-dtype rk4v4 --max-concurrency 6 --spec mtp --draft-tokens 3 --vision
+docker run -d --gpus all -p 8083:8080 --ulimit memlock=-1 --name ninfer-coder390 -v "D:\models\ninfer:/models" -v ninfer-cache:/cache ghcr.io/iamwavecut/ninfer-all:latest serve /models/Qwen3.8-27B-Coder390-EfficientThink-Q2LynnStyle-Q4MTP.ninfer --model-id qwen3.8-27b-coder390-q2-q4mtp --max-context 262144 --kv-capacity 360000 --kv-dtype rk4v4 --max-concurrency 3 --spec mtp --draft-tokens 3 --vision
 ```
 
-| **6-way × 262K window** | aggregate **272.9** (peak 316.3) | per-lane 59-76 | OCR-grade vision | LAN `:8083` |
+| **3-way × 262K window + 360K pool** | short-par **192.2-194.8** | steady decode **126.5** | single 92.7-100.4 | LAN `:8083` |
 |---|---|---|---|---|
 
 > Endpoint: `http://<this-PC-IP>:8083/v1/chat/completions` · model `qwen3.8-27b-coder390-q2-q4mtp` · stop: `docker rm -f ninfer-coder390`
@@ -136,7 +136,7 @@ Route T spec sheet: **74-78 tok/s** decode (~1.8× from MTP) · 160K stable cont
 
 | scenario | pick |
 | --- | --- |
-| daily use / LAN multi-client | **double-click `启动本地大模型-内网8083.bat`** (NInfer Q2 mc6 × d3) ✅ |
+| daily use / LAN multi-client | **double-click `启动本地大模型-内网8083.bat`** (NInfer Q2 mc3 × d3) ✅ |
 | batch / multi-agent parallel | NInfer **mc7 × d3** (aggregate 316.3, see Showdown 1) |
 | single-task, extreme context | NInfer mc1 @ 262K (no vision); 192K with vision |
 | two-way, each lane fast | mc2 × d2 (87/lane, 80.1% acceptance) |
@@ -161,7 +161,7 @@ curl http://127.0.0.1:8083/health        # {"status":"ok"}
 .\scripts\start-twin-turbo-daily.ps1     # verify curl http://127.0.0.1:8082/health
 ```
 
-**Acceptance baselines**: Route N single 80-83 tok/s, 6-way aggregate 272.9; Route T 74-78 tok/s (server-timed; ±10% from MTP acceptance randomness).
+**Acceptance baselines**: Route N single 92.7-100.4 tok/s, 3-way short-par 192-195; Route T 74-78 tok/s (server-timed; ±10% from MTP acceptance randomness).
 
 **Measurement discipline** (how every number here was produced):
 1. Read **server-side timings** only (`timings` / `/stats`) — never client-side deltas
@@ -242,7 +242,7 @@ A: llama.cpp + q8_0 KV (26KB/token) spills at 192K (−25%); 160K is its stable 
 A: Near-lossless across the board. Recall tests pass on both routes (Route T 12K/150K depth; Route N 65K needle verbatim).
 
 **Q: Why not vLLM / SGLang?**
-A: No native Windows support (would nest inside WSL2), and NInfer's shared-pool concurrency measured higher (6-way 272.9 tok/s). llama.cpp remains the zero-Docker control route.
+A: No native Windows support (would nest inside WSL2), and NInfer's shared-pool concurrency measured higher (3-way 192-195 tok/s). llama.cpp remains the zero-Docker control route.
 
 **Q: How much faster on a desktop 5090?**
 A: prefill 2–3×, decode 1.5–2× (575W vs 145W). Capacity conclusions transfer as a method — re-measure for your weights' size.
@@ -251,7 +251,7 @@ A: prefill 2–3×, decode 1.5–2× (575W vs 145W). Capacity conclusions transf
 A: Route T: smaller tier + q8_0 KV + ~96K ctx. NInfer route: needs an even smaller quant tier — concurrency only makes sense on bigger cards.
 
 **Q: Multiple instances?**
-A: Two 27B instances don't fit. NInfer's in-container mc6-7 concurrency is the answer (272-285 tok/s); Route T uses `-np 2`.
+A: Two 27B instances don't fit. NInfer's in-container mc3 concurrency is the answer (192-195 tok/s); Route T uses `-np 2`.
 
 **Q: Image input?**
 A: Both routes are native VLMs. Route N: vision inside the Q2 package (`--vision`, OCR-grade tested); Route T: `--mmproj` (self-quantized Q8_0 = 600 MB). Vision VRAM counts against the concurrency ceiling on both.

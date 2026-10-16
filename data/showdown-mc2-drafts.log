@@ -1,0 +1,26 @@
+=== mc2 draft showdown start Fri Oct 16 22:08:18     2026 ===
+===== mc2 d2 pool=420000 =====
+ITEM short_single | decode=99.3 ttft=340ms mtp=78.2%
+ITEM short_par_b1 | aggregate=154.6 perlane=85 83 mtp=78.4% n=2
+ITEM short_par_b2 | aggregate=131.4 perlane=79 67 mtp=61.2% n=2
+ITEM long_single | prefill=1731 tok/s (25511 tok, ttft=14740ms) decode=73.4 recall=1/1
+ITEM long_par | wall=34.5s aggregate=11.7 perlane_decode=81 34 perlane_prefill=1730 1524 mtp=55.4% recall=2/2
+ITEM long_gen2000 | wall=2.4s steady_aggregate=116.7 perlane_decode=71 67 out=284 mtp=61.5% recall=2/2
+C2 parallel=2 | aggregate=129.3 tok/s (out 768 tok / wall 5.9s) | per-req decode: 83 67 | MTP=66.3% (436/658) | max_tokens_cap=384
+===== mc2 d3 pool=420000 =====
+ITEM short_single | decode=101.0 ttft=1621ms mtp=65.8%
+ITEM short_par_b1 | aggregate=156.6 perlane=83 79 mtp=68.7% n=2
+ITEM short_par_b2 | aggregate=155.2 perlane=86 80 mtp=69.9% n=2
+ITEM long_single | prefill=1729 tok/s (25511 tok, ttft=14752ms) decode=86.1 recall=1/1
+ITEM long_par | wall=33.6s aggregate=11.8 perlane_decode=98 43 perlane_prefill=1728 1516 mtp=60.0% recall=2/2
+ITEM long_gen2000 | wall=3.2s steady_aggregate=104.2 perlane_decode=71 58 out=331 mtp=46.8% recall=2/2
+C2 parallel=2 | aggregate=139.7 tok/s (out 768 tok / wall 5.5s) | per-req decode: 76 72 | MTP=61.1% (498/815) | max_tokens_cap=384
+===== mc2 d4 pool=420000 =====
+ITEM short_single | decode=106.5 ttft=760ms mtp=61.3%
+ITEM short_par_b1 | aggregate=147.9 perlane=83 76 mtp=56.3% n=2
+ITEM short_par_b2 | aggregate=124.6 perlane=78 63 mtp=45.1% n=2
+ITEM long_single | prefill=1727 tok/s (25511 tok, ttft=14776ms) decode=96.0 recall=1/1
+ITEM long_par | wall=33.7s aggregate=10.6 perlane_decode=85 48 perlane_prefill=1725 1561 mtp=46.4% recall=2/2
+ITEM long_gen2000 | wall=3.0s steady_aggregate=119.8 perlane_decode=66 65 out=355 mtp=49.7% recall=2/2
+C2 parallel=2 | aggregate=169.7 tok/s (out 726 tok / wall 4.3s) | per-req decode: 94 89 | MTP=72.4% (539/744) | max_tokens_cap=384
+SHOWDOWN_DONE

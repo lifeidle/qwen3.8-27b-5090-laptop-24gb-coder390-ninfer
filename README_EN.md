@@ -106,7 +106,7 @@ Same family, two architecture routes: dense 27B vs 125B MoE (512 experts, ~6B ac
 Double-click **`scripts/start-ninfer-lan.bat`** (auto-starts Docker → launches the container → health check → prints LAN URLs). Equivalent command:
 
 ```powershell
-docker run -d --gpus all -p 8083:8080 --ulimit memlock=-1 --name ninfer-coder390 -v "D:\models\ninfer:/models" -v ninfer-cache:/cache ghcr.io/iamwavecut/ninfer-all:latest serve /models/Qwen3.8-27B-Coder390-EfficientThink-Q2LynnStyle-Q4MTP.ninfer --model-id qwen3.8-27b-coder390-q2-q4mtp --max-context 262144 --kv-capacity 388032 --kv-dtype rk4v4 --max-concurrency 3 --spec mtp --draft-tokens 3 --vision
+docker run -d --gpus all -p 8083:8080 --ulimit memlock=-1 --name ninfer-coder390 -v "D:\models\ninfer:/models" -v ninfer-cache:/cache ghcr.io/iamwavecut/ninfer-all:latest serve /models/Qwen3.8-27B-Coder390-EfficientThink-Q2LynnStyle-Q4MTP.ninfer --model-id qwen3.8-27b-coder390-q2-q4mtp --max-context 262144 --kv-capacity 388032 --kv-dtype rk4v4 --max-concurrency 3 --spec mtp --draft-tokens 3 --vision --default-reasoning-effort xhigh
 ```
 
 | **3-way × 262K window + 388K pool** | short-par **192.2-194.8** | steady decode **126.5** | single 92.7-100.4 | LAN `:8083` |

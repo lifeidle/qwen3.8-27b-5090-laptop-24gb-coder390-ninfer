@@ -12,7 +12,7 @@
 
 | # | Showdown | Final answer |
 |---|---|---|
-| **1** | **Concurrency trade-off** (final, 10-12): single-lane speed vs multi-way throughput, Q2 @ 262K full window + vision | **mc3 × d3 + 388K pool**: short-par 192.2-194.8, steady decode 126.5, single 92.7-100.4 |
+| **1** | **Concurrency trade-off** (final, 10-12): single-lane speed vs multi-way throughput, Q2 @ 262K full window + vision | **mc3 × d3 + 420K pool**: short-par 192.2-194.8, steady decode 126.5, single 92.7-100.4 |
 | **2** | **Deployment route**: native llama.cpp vs NInfer (WSL2 + Docker) | Both work; NInfer +10-25% faster, llama.cpp zero-Docker |
 | **3** | **Model architecture**: 27B Dense vs Flash-Next 125B MoE | On 24GB single card → **27B Dense is the only way**; Flash-Next needs 2 GPUs |
 
@@ -106,10 +106,10 @@ Same family, two architecture routes: dense 27B vs 125B MoE (512 experts, ~6B ac
 Double-click **`scripts/start-ninfer-lan.bat`** (auto-starts Docker → launches the container → health check → prints LAN URLs). Equivalent command:
 
 ```powershell
-docker run -d --gpus all -p 8083:8080 --ulimit memlock=-1 --name ninfer-coder390 -v "D:\models\ninfer:/models" -v ninfer-cache:/cache ghcr.io/iamwavecut/ninfer-all:latest serve /models/Qwen3.8-27B-Coder390-EfficientThink-Q2LynnStyle-Q4MTP.ninfer --model-id qwen3.8-27b-coder390-q2-q4mtp --max-context 262144 --kv-capacity 388032 --kv-dtype rk4v4 --max-concurrency 3 --spec mtp --draft-tokens 3 --vision --default-reasoning-effort xhigh
+docker run -d --gpus all -p 8083:8080 --ulimit memlock=-1 --name ninfer-coder390 -v "D:\models\ninfer:/models" -v ninfer-cache:/cache ghcr.io/iamwavecut/ninfer-all:latest serve /models/Qwen3.8-27B-Coder390-EfficientThink-Q2LynnStyle-Q4MTP.ninfer --model-id qwen3.8-27b-coder390-q2-q4mtp --max-context 262144 --kv-capacity 420032 --kv-dtype rk4v4 --max-concurrency 3 --spec mtp --draft-tokens 3 --vision --default-reasoning-effort xhigh
 ```
 
-| **3-way × 262K window + 388K pool** | short-par **192.2-194.8** | steady decode **126.5** | single 92.7-100.4 | LAN `:8083` |
+| **2-way × 262K window + 420K pool** | short-par **147.4 mean** (batches 124.6-169.7) | steady decode **119.8** | single **106.5** | LAN `:8083` |
 |---|---|---|---|---|
 
 > Endpoint: `http://<this-PC-IP>:8083/v1/chat/completions` · model `qwen3.8-27b-coder390-q2-q4mtp` · stop: `docker rm -f ninfer-coder390`
@@ -136,7 +136,7 @@ Route T spec sheet: **74-78 tok/s** decode (~1.8× from MTP) · 160K stable cont
 
 | scenario | pick |
 | --- | --- |
-| daily use / LAN multi-client | **double-click `启动本地大模型-内网8083.bat`** (NInfer Q2 mc3 × d3) ✅ |
+| daily use / LAN multi-client | **double-click `启动本地大模型-内网8083.bat`** (NInfer Q2 mc2 × d4) ✅ |
 | batch / multi-agent parallel | NInfer **mc7 × d3** (aggregate 316.3, see Showdown 1) |
 | single-task, extreme context | NInfer mc1 @ 262K (no vision); 192K with vision |
 | two-way, each lane fast | mc2 × d2 (87/lane, 80.1% acceptance) |
@@ -161,7 +161,7 @@ curl http://127.0.0.1:8083/health        # {"status":"ok"}
 .\scripts\start-twin-turbo-daily.ps1     # verify curl http://127.0.0.1:8082/health
 ```
 
-**Acceptance baselines**: Route N single 92.7-100.4 tok/s, 3-way short-par 192-195; Route T 74-78 tok/s (server-timed; ±10% from MTP acceptance randomness).
+**Acceptance baselines**: Route N single 106.5 tok/s, 2-way short-par 147.4 mean; Route T 74-78 tok/s (server-timed; ±10% from MTP acceptance randomness).
 
 **Measurement discipline** (how every number here was produced):
 1. Read **server-side timings** only (`timings` / `/stats`) — never client-side deltas

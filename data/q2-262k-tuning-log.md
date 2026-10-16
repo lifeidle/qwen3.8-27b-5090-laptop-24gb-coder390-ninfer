@@ -140,3 +140,5 @@ mc1-mc7 全通（聚合 83.4 单发 → **262.7** @mc7），mc8 ❌。三轮复�
 ```bash
 --max-context 262144 --kv-capacity 388032 --kv-dtype rk4v4 --max-concurrency 3 --spec mtp --draft-tokens 3 --vision
 ```
+
+**补充实锤（10-16）**：Coder390 包内 chat template 的缺省 effort = **xhigh**（NInfer-all 官方协议原文 "thinking on (template default xhigh)" ×3 处）——即不设任何参数时请求本就跑在 xhigh 上；`--default-reasoning-effort xhigh` 是显式双保险。引擎无"无视请求 effort"的强制 flag；模板硬编码锁（--chat-template 注入）为备选未启用。

@@ -26,7 +26,7 @@
 
 ```bash
 --max-context 262144 --kv-capacity 388032 --kv-dtype rk4v4 \
---max-concurrency 3 --spec mtp --draft-tokens 3 --vision
+--max-concurrency 3 --spec mtp --draft-tokens 3 --vision --default-reasoning-effort xhigh
 ```
 
 | 指标 | 数值 |
@@ -111,7 +111,7 @@
 桌面双击 **`启动本地大模型-内网8083.bat`**：自动拉起 Docker → 起容器 → 健康检查 → 打印内网地址（首次内网访问需在防火墙放行 8083）。等价命令：
 
 ```powershell
-docker run -d --gpus all -p 8083:8080 --ulimit memlock=-1 --name ninfer-coder390 -v "D:\models\ninfer:/models" -v ninfer-cache:/cache ghcr.io/iamwavecut/ninfer-all:latest serve /models/Qwen3.8-27B-Coder390-EfficientThink-Q2LynnStyle-Q4MTP.ninfer --model-id qwen3.8-27b-coder390-q2-q4mtp --max-context 262144 --kv-capacity 388032 --kv-dtype rk4v4 --max-concurrency 3 --spec mtp --draft-tokens 3 --vision
+docker run -d --gpus all -p 8083:8080 --ulimit memlock=-1 --name ninfer-coder390 -v "D:\models\ninfer:/models" -v ninfer-cache:/cache ghcr.io/iamwavecut/ninfer-all:latest serve /models/Qwen3.8-27B-Coder390-EfficientThink-Q2LynnStyle-Q4MTP.ninfer --model-id qwen3.8-27b-coder390-q2-q4mtp --max-context 262144 --kv-capacity 388032 --kv-dtype rk4v4 --max-concurrency 3 --spec mtp --draft-tokens 3 --vision --default-reasoning-effort xhigh
 ```
 
 | **3 路并发 × 262K 满窗 + 388K 池** | 聚合 **272.9**（峰值 316.3） | 单路 59-76 | 视觉 OCR 级 | 内网 `:8083` |

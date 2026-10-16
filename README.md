@@ -12,7 +12,7 @@
 
 | # | 对决 | 最终答案 |
 |---|---|---|
-| **一** | **并发取舍**（10-12 定版）：单路满速 vs 多路吞吐，Q2 @ 262K 满窗 + 视觉 | **mc3 × d3 + 388K 池**：短文并发 192.2-194.8、稳态解码 126.5、单发 92.7-100.4 |
+| **一** | **并发取舍**（10-12 定版）：单路满速 vs 多路吞吐，Q2 @ 262K 满窗 + 视觉 | **mc3 × d3 + 420K 池**：短文并发 192.2-194.8、稳态解码 126.5、单发 92.7-100.4 |
 | **二** | **部署路线**：llama.cpp 原生 vs NInfer（WSL2 + Docker） | 两条都可跑；NInfer 快 10-25%、llama.cpp 免 Docker |
 | **三** | **模型架构**：27B Dense vs Flash-Next 125B MoE | 24GB 单卡 → **27B Dense 唯一正解**；Flash-Next 需双卡起步 |
 
@@ -25,7 +25,7 @@
 ### 定版配置与成绩
 
 ```bash
---max-context 262144 --kv-capacity 388032 --kv-dtype rk4v4 \
+--max-context 262144 --kv-capacity 420032 --kv-dtype rk4v4 \
 --max-concurrency 3 --spec mtp --draft-tokens 3 --vision --default-reasoning-effort xhigh
 ```
 
@@ -111,10 +111,10 @@
 桌面双击 **`启动本地大模型-内网8083.bat`**：自动拉起 Docker → 起容器 → 健康检查 → 打印内网地址（首次内网访问需在防火墙放行 8083）。等价命令：
 
 ```powershell
-docker run -d --gpus all -p 8083:8080 --ulimit memlock=-1 --name ninfer-coder390 -v "D:\models\ninfer:/models" -v ninfer-cache:/cache ghcr.io/iamwavecut/ninfer-all:latest serve /models/Qwen3.8-27B-Coder390-EfficientThink-Q2LynnStyle-Q4MTP.ninfer --model-id qwen3.8-27b-coder390-q2-q4mtp --max-context 262144 --kv-capacity 388032 --kv-dtype rk4v4 --max-concurrency 3 --spec mtp --draft-tokens 3 --vision --default-reasoning-effort xhigh
+docker run -d --gpus all -p 8083:8080 --ulimit memlock=-1 --name ninfer-coder390 -v "D:\models\ninfer:/models" -v ninfer-cache:/cache ghcr.io/iamwavecut/ninfer-all:latest serve /models/Qwen3.8-27B-Coder390-EfficientThink-Q2LynnStyle-Q4MTP.ninfer --model-id qwen3.8-27b-coder390-q2-q4mtp --max-context 262144 --kv-capacity 420032 --kv-dtype rk4v4 --max-concurrency 3 --spec mtp --draft-tokens 3 --vision --default-reasoning-effort xhigh
 ```
 
-| **3 路并发 × 262K 满窗 + 388K 池** | 聚合 **272.9**（峰值 316.3） | 单路 59-76 | 视觉 OCR 级 | 内网 `:8083` |
+| **3 路并发 × 262K 满窗 + 420K 池** | 聚合 **272.9**（峰值 316.3） | 单路 59-76 | 视觉 OCR 级 | 内网 `:8083` |
 |---|---|---|---|---|
 
 > 端点：`http://<本机IP>:8083/v1/chat/completions` · model 名 `qwen3.8-27b-coder390-q2-q4mtp` · 停止：`docker rm -f ninfer-coder390`
@@ -141,7 +141,7 @@ docker run -d --gpus all -p 8083:8080 --ulimit memlock=-1 --name ninfer-coder390
 
 | 你的场景 | 选择 |
 | --- | --- |
-| 日常使用 / 内网多端访问 | **桌面双击 `启动本地大模型-内网8083.bat`**（NInfer Q2 mc3 × d3）✅ |
+| 日常使用 / 内网多端访问 | **桌面双击 `启动本地大模型-内网8083.bat`**（NInfer Q2 mc2 × d4）✅ |
 | 跑批 / 多 agent 并行 | NInfer **mc7 × d3**（聚合 316.3，见对决一） |
 | 单任务极限长文 | NInfer mc1 @ 262K（无视觉）；带视觉 mc1 @ 192K |
 | 双开且每路要快 | mc2 × d2（单路 87、接受率 80.1%） |
@@ -166,7 +166,7 @@ curl http://127.0.0.1:8083/health         # 期望 {"status":"ok"}
 .\scripts\start-twin-turbo-daily.ps1      # 验证 curl http://127.0.0.1:8082/health
 ```
 
-**验收基线**：NInfer 路线单发 92.7-100.4 tok/s、3 路短文并发 192-195（服务端计时）；T 路线 74-78 tok/s。±10% 波动来自 MTP 接受率的内容随机性。
+**验收基线**：NInfer 路线单发 106.5 tok/s、2 路短文并发 147.4 均值（服务端计时）；T 路线 74-78 tok/s。±10% 波动来自 MTP 接受率的内容随机性。
 
 **测量纪律**（本项目所有数字的来源规则）：
 

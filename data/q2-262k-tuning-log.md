@@ -142,3 +142,13 @@ mc1-mc7 全通（聚合 83.4 单发 → **262.7** @mc7），mc8 ❌。三轮复�
 ```
 
 **补充实锤（10-16）**：Coder390 包内 chat template 的缺省 effort = **xhigh**（NInfer-all 官方协议原文 "thinking on (template default xhigh)" ×3 处）——即不设任何参数时请求本就跑在 xhigh 上；`--default-reasoning-effort xhigh` 是显式双保险。引擎无"无视请求 effort"的强制 flag；模板硬编码锁（--chat-template 注入）为备选未启用。
+
+### 窗口边界行为实测（10-16，来自外部 Harness 报障排查）
+
+| 场景 | 引擎行为 |
+|---|---|
+| 提示 ≤ max-context，但 提示 + 请求 max_tokens 超窗 | ✅ 自动裁剪 max_tokens 到剩余空间（实测 254,762 prompt + 8192 请求被接受） |
+| 提示本身 > max-context（262,144） | ❌ HTTP 400 `context_length_exceeded`（**无自动裁剪历史**） |
+| 请求不传 max_tokens | 引擎默认 = "每路同时入场提审的最大预算 + 单路剩余上下文"（池级大数） |
+
+推论：外部 Harness 的「输出截断」= Harness 自身 max_tokens 帽（在 Harness 设置里调大）；「400 超窗」= Harness 无限累积历史超过 262K 原生窗——引擎不裁历史，**历史管理必须在 Harness 侧做**（或将来测 --rope-yarn 扩窗，质量未验证）。
